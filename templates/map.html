@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>MTR 列車實時動態物理地圖</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --twl-red: #E2231A; --bg-dark: #121418; --card-bg: #1e222b; }
+        body { margin: 0; background: var(--bg-dark); color: #fff; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        header { background: var(--card-bg); padding: 15px 20px; display: flex; justify-content: space-between; border-bottom: 2px solid var(--twl-red); }
+        .map-container { flex: 1; padding: 30px; overflow: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .line-track { display: flex; align-items: center; position: relative; background: #2a2f3a; border-radius: 12px; padding: 20px 40px; min-width: 900px; height: 120px; }
+        .track-rail { position: absolute; left: 60px; right: 60px; height: 8px; background: var(--twl-red); border-radius: 4px; }
+        .station-node { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .station-dot { width: 18px; height: 18px; background: #fff; border: 4px solid var(--twl-red); border-radius: 50%; margin-bottom: 10px; }
+        .train-marker { position: absolute; z-index: 3; top: 30px; color: #ffca28; font-size: 22px; transition: all 1s linear; }
+    </style>
+</head>
+<body>
+    <header>
+        <div><i class="fa-solid fa-map-location-dot" style="color: var(--twl-red);"></i> MTR 荃灣線實時動態列車物理地圖</div>
+    </header>
+    <div class="map-container">
+        <div class="line-track" id="line-track">
+            <div class="track-rail"></div>
+        </div>
+    </div>
+
+    <script>
+        const STATIONS = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"];
+        const ST_NAMES = ["中環","金鐘","尖沙咀","佐敦","油麻地","旺角","太子","深水埗","長沙灣","荔枝角","美孚","荔景","葵芳","葵興","大窩口","荃灣"];
+
+        function initNodes() {
+            const track = document.getElementById('line-track');
+            STATIONS.forEach((code, idx) => {
+                const node = document.createElement('div');
+                node.className = 'station-node';
+                node.innerHTML = `<div class="station-dot"></div><div style="font-size:13px;font-weight:bold;">${ST_NAMES[idx]}</div><div style="font-size:10px;color:#888;">${code}</div>`;
+                track.appendChild(node);
+            });
+        }
+
+        function updateTrainPositions() {
+            fetch('/api/admin/dashboard?line=TWL')
+                .then(r => r.json())
+                .then(d => {
+                    document.querySelectorAll('.train-marker').forEach(m => m.remove());
+                    d.active_trains.forEach(t => {
+                        const fromIdx = STATIONS.indexOf(t.from);
+                        const toIdx = STATIONS.indexOf(t.to);
+                        if (fromIdx !== -1 && toIdx !== -1) {
+                            const curIdx = fromIdx + (toIdx - fromIdx) * t.ratio;
+                            const leftPos = (curIdx / (STATIONS.length - 1)) * 80 + 10;
+                            const el = document.createElement('i');
+                            el.className = 'fa-solid fa-train-subway train-marker';
+                            el.style.left = `${leftPos}%`;
+                            document.getElementById('line-track').appendChild(el);
+                        }
+                    });
+                });
+        }
+
+        initNodes();
+        setInterval(updateTrainPositions, 1000);
+    </script>
+</body>
+</html>
