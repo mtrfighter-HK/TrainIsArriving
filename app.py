@@ -128,19 +128,56 @@ def update_live_core_engine(api_train_data):
             PEAK_TRAIN_COUNT = current_active_count
 
 def mock_or_fetch_api():
+    """24小時不間斷監聽港鐵官方 API，獲取荃灣線實時列車動態"""
+    MTR_API_URL = "https://rt.mtr.com.hk/tickets/byEasterner/trainTimeString.php"
+    
     while True:
         try:
-            mock_data = [
-                {"line": "TWL", "station": "ADM", "direction": "UP", "ttnt": 0, "dest": "TSW"},
-                {"line": "TWL", "station": "CEN", "direction": "UP", "ttnt": 2, "dest": "TSW"}
-            ]
-            update_live_core_engine(mock_data)
+            # 呼叫港鐵官方荃灣線 (TWL) 實時車務數據
+            response = requests.get(MTR_API_URL, params={"line": "TWL"}, timeout=8)
+            
+            if response.status_code == 200:
+                api_data = response.json()
+                
+                # 解析港鐵返回的結構並轉換為我們引擎所需的格式
+                formatted_trains = []
+                
+                # 港鐵數據包裹在 data -> TWL -> UP / DOWN 裡面
+                if "data" in api_data and "TWL" in api_data["data"]:
+                    twl_data = api_data["data"]["TWL"]
+                    
+                    for direction in ["UP", "DOWN"]:
+                        if direction in twl_data:
+                            for station_code, train_list in twl_data[direction].items():
+                                for t_info in train_list:
+                                    # 提取 ttnt (到站倒數分鐘) 與 dest (目的地)
+                                    ttnt = t_info.get("ttnt", -1)
+                                    dest = t_info.get("dest", "")
+                                    
+                                    # 如果數值有效，塞入我們的物理大腦進行比對
+                                    if ttnt != -1:
+                                        formatted_trains.append({
+                                            "line": "TWL",
+                                            "station": station_code,
+                                            "direction": direction,
+                                            "ttnt": int(ttnt),
+                                            "dest": dest
+                                        })
+                
+                # 將實時數據送入我們的物理引擎比對 Arrived / Departed 事件
+                if formatted_trains:
+                    update_live_core_engine(formatted_trains)
+                    
         except Exception as e:
-            print(f"核心引擎異常: {e}")
-        time.sleep(2)
+            print(f"港鐵 API 數據抓取或核心引擎運算異常: {e}")
+            
+        # 港鐵官方數據每 10-15 秒更新一次，我們設定 10 秒抓取一次最為精準
+        time.sleep(10)
 
+# 啟動背景實時監聽線程
 t = threading.Thread(target=mock_or_fetch_api, daemon=True)
 t.start()
+
 
 # ----------------------------------------------------
 # 5. 後台與地圖路由
