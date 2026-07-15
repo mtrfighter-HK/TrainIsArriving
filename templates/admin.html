@@ -10,27 +10,42 @@
             margin: 0; 
             padding: 0; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: #12131a; /* 配合你截圖中的深色背景風格 */
+            background: #12131a; 
             color: #e2e8f0; 
         }
 
-        /* 統一導航欄風格 (維持深灰底配紅色線) */
+        /* 🎯 統一導航欄黃金 CSS (與 map.html 完完全全一模一樣) */
         header { 
             background: #1e222b; 
             color: #fff;
-            padding: 12px 20px; 
+            padding: 0 20px; 
+            height: 56px; /* 強制固定高度 */
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             border-bottom: 3px solid #E2231A; 
+            z-index: 1000; 
+            position: relative;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-sizing: border-box;
         }
-        .nav-title { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .nav-title { 
+            font-size: 16px; 
+            font-weight: bold; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            white-space: nowrap; /* 防止換行 */
+            overflow: hidden;
+            text-overflow: ellipsis; /* 螢幕過窄時自動縮略 */
+            margin-right: 15px;
+        }
         .btn-nav { 
             background: #E2231A; 
             color: white; 
             text-decoration: none; 
-            padding: 6px 14px; 
+            padding: 0 14px; 
+            height: 34px; /* 按鈕高度固定 */
             border-radius: 4px; 
             font-size: 13px; 
             font-weight: bold;
@@ -38,12 +53,13 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
         .btn-nav:hover { background: #b91c1c; }
 
         .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
 
-        /* 頂部數據統計卡片 (還原 Screenshot_20260715-165346.png) */
         .stats-card {
             background: #1e222b;
             border-radius: 8px;
@@ -74,7 +90,6 @@
         .stat-label { font-size: 11px; color: #a0aec0; margin-bottom: 6px; line-height: 1.3; }
         .stat-value { font-size: 20px; font-weight: bold; color: #f59e0b; }
 
-        /* 簡單版表格式列車位置圖 (100% 還原 1000004101.png) */
         .monitor-table {
             width: 100%;
             border-collapse: collapse;
@@ -85,12 +100,10 @@
             margin-bottom: 40px;
         }
         
-        /* 車站行 */
         .row-station {
             background: #1e222b;
             border-bottom: 1px solid #2a2e37;
         }
-        /* 站間區間行 */
         .row-interval {
             background: #171a21;
             border-bottom: 1px solid #2a2e37;
@@ -101,7 +114,6 @@
             vertical-align: middle;
         }
 
-        /* 站名與車站代碼 */
         .station-info {
             display: flex;
             align-items: baseline;
@@ -118,7 +130,6 @@
             font-weight: 500;
         }
 
-        /* 站間區間標示文字 */
         .interval-text {
             font-size: 12px;
             color: #4a5568;
@@ -127,13 +138,11 @@
             gap: 5px;
         }
 
-        /* 列車圖標單元格：上行與下行列車圖標 */
         .train-col {
             width: 60px;
             text-align: center;
         }
 
-        /* 港鐵經典紅頭火車圖標 (高精細 CSS 圓形列車圖標，還原 1000004101.png 風格) */
         .mtr-train-icon {
             width: 24px;
             height: 24px;
@@ -147,12 +156,11 @@
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
             animation: pulse 1.5s infinite ease-in-out;
         }
-        /* 火車車窗與紅頭特徵 */
         .mtr-train-icon::before {
             content: '';
             width: 14px;
             height: 8px;
-            background: #e2231a; /* 荃灣線紅 */
+            background: #e2231a; 
             border-radius: 3px 3px 0 0;
             position: absolute;
             top: 3px;
@@ -161,7 +169,7 @@
             content: '';
             width: 8px;
             height: 3px;
-            background: #63b3ed; /* 藍色車窗 */
+            background: #63b3ed; 
             position: absolute;
             top: 5px;
         }
@@ -177,7 +185,7 @@
 
     <header>
         <div class="nav-title">
-            <i class="fa-solid fa-chart-simple" style="color: #E2231A;"></i> MTR 實時監控與數據歸檔系統
+            <i class="fa-solid fa-chart-simple" style="color: #E2231A;"></i> 📊 MTR 實時數據監控後台
         </div>
         <a href="/" class="btn-nav">
             <i class="fa-solid fa-map-location-dot"></i> 前往實時地圖
@@ -212,7 +220,6 @@
     </div>
 
     <script>
-        // 荃灣線由北至南 16 車站順序 (上行 = 往荃灣，下行 = 往中環)
         const TWL_STATIONS_ORDER = [
             { code: "TSW", name: "荃灣" },
             { code: "TWH", name: "大窩口" },
@@ -232,7 +239,6 @@
             { code: "CEN", name: "中環" }
         ];
 
-        // 初始化表格結構
         function buildTableStructure() {
             const tbody = document.getElementById("monitor-body");
             tbody.innerHTML = "";
@@ -240,7 +246,6 @@
             for (let i = 0; i < TWL_STATIONS_ORDER.length; i++) {
                 const st = TWL_STATIONS_ORDER[i];
 
-                // 1. 車站行
                 const trStation = document.createElement("tr");
                 trStation.className = "row-station";
                 trStation.id = `row-st-${st.code}`;
@@ -256,14 +261,11 @@
                 `;
                 tbody.appendChild(trStation);
 
-                // 2. 站間區間行 (最後一站下方不需要區間)
                 if (i < TWL_STATIONS_ORDER.length - 1) {
                     const nextSt = TWL_STATIONS_ORDER[i + 1];
                     const trInterval = document.createElement("tr");
                     trInterval.className = "row-interval";
                     
-                    // 區間 ID 標記格式：from_to (例如：TSW_TWH)
-                    // 上行與下行在物理區間中是同一單元格，我們分別追蹤
                     trInterval.innerHTML = `
                         <td>
                             <div class="interval-text">
@@ -278,35 +280,27 @@
             }
         }
 
-        // 定時抓取數據並更新列車圖標跳動
         function updateDashboard() {
             fetch('/api/admin/dashboard?line=TWL')
                 .then(r => r.json())
                 .then(data => {
-                    // 更新上方統計數字
                     document.getElementById("val-up").innerText = data.up_running;
                     document.getElementById("val-down").innerText = data.down_running;
                     document.getElementById("val-peak").innerText = data.peak_use_today;
 
-                    // 清空所有表格單元格中的列車圖標
                     document.querySelectorAll(".train-col").forEach(td => td.innerHTML = "");
 
-                    // 重新填入最新列車位置
                     data.active_trains.forEach(t => {
                         const from = t.from;
                         const to = t.to;
-                        const dir = t.direction; // UP / DOWN
-                        const status = t.status; // stopped_at_station / cruising
+                        const dir = t.direction;
+                        const status = t.status;
 
                         let targetTdId = "";
 
                         if (status === "stopped_at_station") {
-                            // 列車停在 target 站 (這裡 to 是它已到達的站)
                             targetTdId = `td-st-${to}-${dir}`;
                         } else {
-                            // 列車正在 from 和 to 之間的「站間區間」行駛
-                            // 需要注意區間 ID 命名：我們在初始化時是以 [第 i 站]_[第 i+1 站] 命名
-                            // 如果是 UP (TSW -> CEN 方向由前至後，或是 CEN -> TSW，要尋找對應初始化的 DOM 元素)
                             let element = document.getElementById(`td-int-${from}_${to}-${dir}`);
                             if (!element) {
                                 element = document.getElementById(`td-int-${to}_${from}-${dir}`);
@@ -327,10 +321,9 @@
                 .catch(err => console.error("抓取後台數據失敗:", err));
         }
 
-        // 初始化與啟動定時器
         buildTableStructure();
         updateDashboard();
-        setInterval(updateDashboard, 1500); // 每 1.5 秒自動刷新跳動一次
+        setInterval(updateDashboard, 1500);
     </script>
 </body>
 </html>
