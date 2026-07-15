@@ -9,11 +9,10 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 
 # ----------------------------------------------------
-# 1. 核心數據定義（荃灣線 16 站標準順序）
+# 1. 核心數據定義
 # ----------------------------------------------------
 TWL_ORDER = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"]
 
-# 車站中文名稱對照表
 ST_NAMES = {
     "CEN":"中環", "ADM":"金鐘", "TST":"尖沙咀", "JOR":"佐敦", "YMT":"油麻地",
     "MOK":"旺角", "PRE":"太子", "SSP":"深水埗", "CSW":"長沙灣", "LCK":"荔枝角",
@@ -30,12 +29,11 @@ LAST_API_STATE = {}
 PEAK_TRAIN_COUNT = 0       
 LOCK = threading.Lock()
 
-# 數據存檔目錄
 DATA_DIR = os.path.join(app.root_path, 'data_archive')
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # ----------------------------------------------------
-# 3. 輔助函數：站序計算
+# 3. 輔助函數
 # ----------------------------------------------------
 def get_previous_station(current_sta, direction):
     if current_sta not in TWL_ORDER:
@@ -57,9 +55,6 @@ def get_next_station(current_sta, direction):
         return TWL_ORDER[idx - 1] if idx > 0 else None
     return None
 
-# ----------------------------------------------------
-# 4. 自動按月數據存檔功能
-# ----------------------------------------------------
 def archive_log_event(line, station, direction, event_type, dest):
     now = datetime.datetime.now()
     year_month = now.strftime("%Y%m")
@@ -107,7 +102,13 @@ def update_live_core_engine(api_train_data):
             state_key = f"{line}_{sta}_{direction}"
             last_state = LAST_API_STATE.get(state_key)
             
-            if ttnt == 0:
+            # 確保 ttnt 為整數
+            try:
+                ttnt_val = int(ttnt)
+            except (ValueError, TypeError):
+                continue
+            
+            if ttnt_val == 0:
                 if not last_state or last_state.get('ttnt', -1) > 0:
                     archive_log_event(line, sta, direction, "ARRIVED", dest)
                 
@@ -121,7 +122,7 @@ def update_live_core_engine(api_train_data):
                         "ratio": 1.0, "status": "stopped_at_station"
                     }
             
-            elif ttnt > 0:
+            elif ttnt_val > 0:
                 next_sta = get_next_station(sta, direction)
                 if next_sta:
                     train_id = f"{line}_{direction}_{sta}_{next_sta}"
@@ -137,7 +138,7 @@ def update_live_core_engine(api_train_data):
                         }
                     updated_train_ids.add(train_id)
             
-            LAST_API_STATE[state_key] = {'ttnt': ttnt, 'timestamp': now}
+            LAST_API_STATE[state_key] = {'ttnt': ttnt_val, 'timestamp': now}
 
         current_active_count = 0
         for tid, t in list(ACTIVE_TRAINS.items()):
@@ -159,18 +160,23 @@ def update_live_core_engine(api_train_data):
             PEAK_TRAIN_COUNT = current_active_count
 
 # ----------------------------------------------------
-# 6. 24小時港鐵官方 API 輪詢監聽器
+# 6. 港鐵官方 API 輪詢監聽器（🎯 加入偵錯 logs 且放寬過濾條件）
 # ----------------------------------------------------
 def mtr_api_fetcher_thread():
     BASE_URL = "https://rt.mtr.com.hk/rt_ticket-val/data/v1/transport/mtr/getSchedule.php"
     
+    print("[MTR Core] 實時數據監聽背景線程已啟動...")
     while True:
         formatted_trains = []
+        success_count = 0
+        fail_count = 0
+        
         for sta in TWL_ORDER:
             try:
                 response = requests.get(BASE_URL, params={"line": "TWL", "sta": sta}, timeout=5)
                 if response.status_code == 200:
                     res_json = response.json()
+                    success_count += 1
                     if "data" in res_json:
                         key = f"TWL-{sta}"
                         if key in res_json["data"]:
@@ -180,7 +186,8 @@ def mtr_api_fetcher_thread():
                                     for t_info in sta_data[direction]:
                                         ttnt = t_info.get("ttnt", -1)
                                         dest = t_info.get("dest", "")
-                                        if ttnt != -1 and int(ttnt) <= 4:
+                                        # 🎯 偵錯與放寬：只要 ttnt 存在，不限分鐘，全部送去運算！
+                                        if ttnt != -1 and ttnt != "":
                                             formatted_trains.append({
                                                 "line": "TWL",
                                                 "station": sta,
@@ -188,15 +195,21 @@ def mtr_api_fetcher_thread():
                                                 "ttnt": int(ttnt),
                                                 "dest": dest
                                             })
+                else:
+                    fail_count += 1
             except Exception as e:
-                print(f"抓取 {sta} 站 API 異常: {e}")
-            time.sleep(0.3)
+                fail_count += 1
+            time.sleep(0.15) # 稍微縮短單站延遲，加快輪詢速度
             
+        # 🎯 在 Render 控制台印出每輪 API 獲取狀態與數據量
+        print(f"[MTR Log] {datetime.datetime.now().strftime('%H:%M:%S')} | 車站輪詢成功: {success_count}/16 | 失敗: {fail_count} | 捕捉到實時列車班次: {len(formatted_trains)} 班")
+        
         if formatted_trains:
             try:
                 update_live_core_engine(formatted_trains)
+                print(f"[MTR Log] 物理引擎更新完畢。當前活動列車總數: {len(ACTIVE_TRAINS)}")
             except Exception as e:
-                print(f"物理引擎運作異常: {e}")
+                print(f"[MTR Log] ⚠️ 物理引擎更新異常: {e}")
                 
         time.sleep(12)
 
@@ -204,20 +217,16 @@ t = threading.Thread(target=mtr_api_fetcher_thread, daemon=True)
 t.start()
 
 # ----------------------------------------------------
-# 7. 後端路由與頁面分流 (💡 關鍵修改處)
+# 7. 後端路由
 # ----------------------------------------------------
-
-# 🎯 路由 A：將首頁指向地圖頁
 @app.route('/')
 def map_page():
     return render_template('map.html')
 
-# 🎯 路由 B：將 /admin 指向數據後台頁
 @app.route('/admin')
 def admin_page():
     return render_template('admin.html')
 
-# 🎯 新增 API：供前端點擊車站時，直接獲取該站即時更新的 TTNT 數據
 @app.route('/api/station/schedule')
 def station_schedule_api():
     sta = request.args.get('sta', '').upper()
