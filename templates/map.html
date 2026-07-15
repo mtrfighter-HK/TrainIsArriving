@@ -10,11 +10,12 @@
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f4f6f9; color: #333; }
         
-        /* 統一導航欄風格 */
+        /* 🎯 統一導航欄黃金 CSS (固定高度、防換行擠壓) */
         header { 
             background: #1e222b; 
             color: #fff;
-            padding: 12px 20px; 
+            padding: 0 20px; 
+            height: 56px; /* 強制固定高度 */
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
@@ -22,13 +23,25 @@
             z-index: 1000; 
             position: relative;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-sizing: border-box;
         }
-        .nav-title { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .nav-title { 
+            font-size: 16px; 
+            font-weight: bold; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            white-space: nowrap; /* 防止換行 */
+            overflow: hidden;
+            text-overflow: ellipsis; /* 螢幕過窄時自動縮略 */
+            margin-right: 15px;
+        }
         .btn-nav { 
             background: #E2231A; 
             color: white; 
             text-decoration: none; 
-            padding: 6px 14px; 
+            padding: 0 14px; 
+            height: 34px; /* 按鈕高度固定 */
             border-radius: 4px; 
             font-size: 13px; 
             font-weight: bold;
@@ -36,13 +49,14 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            white-space: nowrap;
+            box-sizing: border-box;
         }
         .btn-nav:hover { background: #b91c1c; }
 
         /* 地圖容器 */
-        #map { width: 100%; height: calc(100vh - 51px); background: #f0f0f0; }
+        #map { width: 100%; height: calc(100vh - 56px); background: #f0f0f0; }
 
-        /* 車站標籤風格 */
         .station-label { 
             background: rgba(255, 255, 255, 0.9); 
             color: #222; 
@@ -54,7 +68,6 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        /* 🎌 日系車站彈窗風格樣式 */
         .popup-station-title {
             font-size: 14px;
             font-weight: bold;
@@ -98,7 +111,7 @@
 
     <header>
         <div class="nav-title">
-            <i class="fa-solid fa-map-location-dot" style="color: #E2231A;"></i> MTR 所有路線列車實時位置監控系統
+            <i class="fa-solid fa-map-location-dot" style="color: #E2231A;"></i> 🚇 MTR 列車實時位置地圖
         </div>
         <a href="/admin" class="btn-nav">
             <i class="fa-solid fa-chart-simple"></i> 前往數據後台
@@ -108,21 +121,12 @@
     <div id="map"></div>
 
     <script>
-        // 1. 各路線標準代表色
         const LINE_COLORS = {
-            "TWL": "#E2231A", // 荃灣線
-            "KTL": "#009A3A", // 觀塘線
-            "ISL": "#005A9C", // 港島線
-            "SIL": "#B5D136", // 南港島線
-            "TKL": "#5D2D82", // 將軍澳線
-            "TCL": "#F39800", // 東涌線
-            "DRL": "#E51D75", // 迪士尼線
-            "AEL": "#007278", // 機場快線
-            "EAL": "#57B2F6", // 東鐵線
-            "TML": "#9A3820"  // 屯馬線
+            "TWL": "#E2231A", "KTL": "#009A3A", "ISL": "#005A9C", "SIL": "#B5D136",
+            "TKL": "#5D2D82", "TCL": "#F39800", "DRL": "#E51D75", "AEL": "#007278",
+            "EAL": "#57B2F6", "TML": "#9A3820"
         };
 
-        // 荃灣線官方標準 16 站，用於強制定向過濾（解決轉車站漏顯示問題）
         const TWL_STATIONS = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"];
 
         const ST_NAMES = {
@@ -131,35 +135,29 @@
             "MEF":"美孚", "LAK":"荔景", "KWF":"葵芳", "KWH":"葵興", "TWH":"大窩口", "TSW":"荃灣"
         };
 
-        // 2. 初始化 Leaflet 地圖
         const map = L.map('map').setView([22.32, 114.16], 12);
         
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
         }).addTo(map);
 
-        // 🎯 創建獨立的 Z-Index 窗格 (Panes) 解決圖層遮擋問題
-        // 軌道窗格 (最低)
         map.createPane('trackPane');
         map.getPane('trackPane').style.zIndex = 400;
 
-        // 車站窗格 (中)
         map.createPane('stationPane');
         map.getPane('stationPane').style.zIndex = 450;
 
-        // 列車點窗格 (最高)
         map.createPane('trainPane');
         map.getPane('trainPane').style.zIndex = 500;
 
         let loadedStationCoords = {};
 
-        // 3. 讀取並繪製車站 (解決轉車站缺失問題)
+        // 讀取並繪製車站
         fetch('/static/StationLocation_2026_06.geojson')
             .then(r => r.json())
             .then(data => {
                 L.geoJSON(data, {
                     filter: function(feature) {
-                        // 🎯 關鍵修正：只要 StationCode 在荃灣線 16 站名單內，就必須顯示！
                         const code = feature.properties.StationCode;
                         return TWL_STATIONS.includes(code);
                     },
@@ -167,17 +165,15 @@
                         const code = feature.properties.StationCode;
                         const nameZh = feature.properties["StationName:zh"];
                         
-                        // 儲存至坐標庫供列車插值使用
                         loadedStationCoords[code] = [latlng.lat, latlng.lng];
 
-                        // 繪製黑框白底圓點，並強制放入 'stationPane' 窗格
                         const marker = L.circleMarker(latlng, {
                             radius: 5.5,
                             color: '#000000',
                             weight: 2,
                             fillColor: '#ffffff',
                             fillOpacity: 1,
-                            pane: 'stationPane' // 🎯 強制車站點位於軌道上方
+                            pane: 'stationPane'
                         });
 
                         marker.bindTooltip(nameZh, {
@@ -187,7 +183,6 @@
                             className: 'station-label'
                         });
 
-                        // 點擊事件：日系彈窗更新
                         marker.on('click', function() {
                             const popup = L.popup()
                                 .setLatLng(latlng)
@@ -246,7 +241,7 @@
                 }).addTo(map);
             });
 
-        // 4. 讀取並繪製軌道折線
+        // 讀取並繪製軌道折線
         fetch('/static/Track.TsuenWanLine.geojson')
             .then(r => r.json())
             .then(data => {
@@ -258,11 +253,11 @@
                             opacity: 0.85
                         };
                     },
-                    pane: 'trackPane' // 🎯 強制軌道位於最底層窗格
+                    pane: 'trackPane'
                 }).addTo(map);
             });
 
-        // 5. 列車動態物理地圖繪製
+        // 列車動態物理地圖繪製
         let trainMarkers = {};
 
         function updateTrains() {
@@ -288,7 +283,6 @@
                             if (trainMarkers[t.id]) {
                                 trainMarkers[t.id].setLatLng([currentLat, currentLng]);
                             } else {
-                                // 🎯 強制將列車標記放入 'trainPane' 窗格，確保火車永遠蓋在車站點上方！
                                 trainMarkers[t.id] = L.marker([currentLat, currentLng], { 
                                     icon: trainIcon,
                                     pane: 'trainPane' 
