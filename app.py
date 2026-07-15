@@ -9,23 +9,61 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 
 # ----------------------------------------------------
-# 1. 核心數據結構定義
+# 1. 核心數據定義（荃灣線 16 站標準順序）
 # ----------------------------------------------------
 TWL_ORDER = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"]
-TKL_ORDER = ["NOP", "QUB", "YAT", "TIK", "TKO", "HAH", "POA"]
 
-TRAVEL_TIME_CONFIG = {}
-ACTIVE_TRAINS = {}         # 雲端運行的虛擬列車狀態
-LAST_API_STATE = {}        # 用於比對 ttnt 從 0 變大的上一次狀態
-PEAK_TRAIN_COUNT = 0       # 當日最高全線用車量
+# 車站中文名稱對照表
+ST_NAMES = {
+    "CEN":"中環", "ADM":"金鐘", "TST":"尖沙咀", "JOR":"佐敦", "YMT":"油麻地",
+    "MOK":"旺角", "PRE":"太子", "SSP":"深水埗", "CSW":"長沙灣", "LCK":"荔枝角",
+    "MEF":"美孚", "LAK":"荔景", "KWF":"葵芳", "KWH":"葵興", "TWH":"大窩口", "TSW":"荃灣"
+}
+
+# 站與站之間的平均行車時間（秒），用於物理引擎計算 Ratio 比例
+DEFAULT_TRAVEL_TIME = 110 
+
+# ----------------------------------------------------
+# 2. 物理引擎狀態儲存
+# ----------------------------------------------------
+ACTIVE_TRAINS = {}         # 實時運行的列車字典 { train_id: train_info }
+LAST_API_STATE = {}        # 用於比對 ttnt 狀態變化以監聽「出發/到達」事件
+PEAK_TRAIN_COUNT = 0       # 當日全線最高用車量
 LOCK = threading.Lock()
 
-# 數據歸檔資料夾
+# 數據存檔目錄
 DATA_DIR = os.path.join(app.root_path, 'data_archive')
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # ----------------------------------------------------
-# 2. 自動按月數據歸檔機制
+# 3. 輔助函數：站序計算
+# ----------------------------------------------------
+def get_previous_station(current_sta, direction):
+    """根據當前站和行車方向，推算上一站是哪裡"""
+    if current_sta not in TWL_ORDER:
+        return None
+    idx = TWL_ORDER.index(current_sta)
+    
+    if direction == "UP": # 往荃灣方向 (中環 -> 荃灣)
+        return TWL_ORDER[idx - 1] if idx > 0 else None
+    elif direction == "DOWN": # 往中環方向 (荃灣 -> 中環)
+        return TWL_ORDER[idx + 1] if idx < len(TWL_ORDER) - 1 else None
+    return None
+
+def get_next_station(current_sta, direction):
+    """根據當前站和行車方向，推算下一站是哪裡"""
+    if current_sta not in TWL_ORDER:
+        return None
+    idx = TWL_ORDER.index(current_sta)
+    
+    if direction == "UP": # 往荃灣方向
+        return TWL_ORDER[idx + 1] if idx < len(TWL_ORDER) - 1 else None
+    elif direction == "DOWN": # 往中環方向
+        return TWL_ORDER[idx - 1] if idx > 0 else None
+    return None
+
+# ----------------------------------------------------
+# 4. 自動按月數據存檔存檔功能
 # ----------------------------------------------------
 def archive_log_event(line, station, direction, event_type, dest):
     now = datetime.datetime.now()
@@ -51,110 +89,120 @@ def archive_log_event(line, station, direction, event_type, dest):
                 data_list = []
                 
         data_list.append(event_data)
-        
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data_list, f, ensure_ascii=False, indent=4)
 
 # ----------------------------------------------------
-# 3. 路線與車站站序輔助
-# ----------------------------------------------------
-def get_previous_station(next_sta, direction, line, dest=""):
-    next_sta, direction, line = next_sta.upper().strip(), direction.upper().strip(), line.upper().strip()
-    if line == "TWL":
-        if next_sta not in TWL_ORDER: return None
-        idx = TWL_ORDER.index(next_sta)
-        return TWL_ORDER[idx - 1] if direction == "UP" else (TWL_ORDER[idx + 1] if idx < len(TWL_ORDER) - 1 else None)
-    return None
-
-# ----------------------------------------------------
-# 4. 24小時核心事件監聽與物理引擎
+# 5. 核心物理引擎演算法
 # ----------------------------------------------------
 def update_live_core_engine(api_train_data):
     global PEAK_TRAIN_COUNT
     now = time.time()
-    current_active_count = 0
     
-    for train in api_train_data:
-        line = train.get('line', '').upper()
-        sta = train.get('station', '').upper()
-        dir = train.get('direction', '').upper()
-        ttnt = int(train.get('ttnt', -1))
-        dest = train.get('dest', '')
-        
-        state_key = f"{line}_{sta}_{dir}"
-        last_state = LAST_API_STATE.get(state_key)
-        
-        if ttnt == 0:
-            if not last_state or last_state.get('ttnt') > 0:
-                archive_log_event(line, sta, dir, "ARRIVED", dest)
-                prev_sta = get_previous_station(sta, dir, line, dest)
-                if prev_sta:
-                    train_id = f"{line}_{dir}_{prev_sta}_{sta}"
-                    if train_id in ACTIVE_TRAINS:
-                        ACTIVE_TRAINS[train_id]['status'] = 'arrived'
-                        ACTIVE_TRAINS[train_id]['ratio'] = 1.0
-
-        elif ttnt > 0 and last_state and last_state.get('ttnt') == 0:
-            archive_log_event(line, sta, dir, "DEPARTED", dest)
-            next_sta = None
-            if line == "TWL":
-                idx = TWL_ORDER.index(sta)
-                next_sta = TWL_ORDER[idx + 1] if dir == "UP" and idx < len(TWL_ORDER) - 1 else (TWL_ORDER[idx - 1] if dir == "DOWN" and idx > 0 else None)
-            
-            if next_sta:
-                train_id = f"{line}_{dir}_{sta}_{next_sta}"
-                time_key = f"{sta}_{next_sta}"
-                duration = TRAVEL_TIME_CONFIG.get(time_key, 110)
-                
-                with LOCK:
-                    ACTIVE_TRAINS[train_id] = {
-                        "line": line, "direction": dir, "from_sta": sta, "to_sta": next_sta,
-                        "dest": dest, "start_time": now, "total_duration_sec": duration,
-                        "ratio": 0.0, "status": "cruising"
-                    }
-                    
-        LAST_API_STATE[state_key] = {'ttnt': ttnt, 'timestamp': now}
-
     with LOCK:
-        for tid, t in ACTIVE_TRAINS.items():
+        # 建立目前在 API 中依然有更新的火車標記
+        updated_train_ids = set()
+
+        for train in api_train_data:
+            line = train.get('line', 'TWL')
+            sta = train.get('station')
+            direction = train.get('direction')
+            ttnt = train.get('ttnt')
+            dest = train.get('dest')
+            
+            state_key = f"{line}_{sta}_{direction}"
+            last_state = LAST_API_STATE.get(state_key)
+            
+            # 情況 A：列車剛好進站 (ttnt 從大於 0 變為 0)
+            if ttnt == 0:
+                if not last_state or last_state.get('ttnt', -1) > 0:
+                    archive_log_event(line, sta, direction, "ARRIVED", dest)
+                
+                # 計算這台進站列車應該屬於哪一個「區間」的終點
+                prev_sta = get_previous_station(sta, direction)
+                if prev_sta:
+                    train_id = f"{line}_{direction}_{prev_sta}_{sta}"
+                    updated_train_ids.add(train_id)
+                    # 鎖定狀態為已到站，Ratio 設為 1.0 (代表在月台)
+                    ACTIVE_TRAINS[train_id] = {
+                        "line": line, "direction": direction, "from_sta": prev_sta, "to_sta": sta,
+                        "dest": dest, "start_time": now, "total_duration_sec": DEFAULT_TRAVEL_TIME,
+                        "ratio": 1.0, "status": "stopped_at_station"
+                    }
+            
+            # 情況 B：列車離站出發 (ttnt 從 0 變為大於 0，代表上一班車開走，新列車在途中)
+            elif ttnt > 0:
+                # 推算下一站
+                next_sta = get_next_station(sta, direction)
+                if next_sta:
+                    train_id = f"{line}_{direction}_{sta}_{next_sta}"
+                    
+                    # 檢查這輛車是否剛出發 (上一輪記錄中它還停在月台 ttnt=0)
+                    if last_state and last_state.get('ttnt') == 0:
+                        archive_log_event(line, sta, direction, "DEPARTED", dest)
+                    
+                    # 如果這輛車還未在運行清單，或者原本是在月台，現在開始物理行駛
+                    if train_id not in ACTIVE_TRAINS or ACTIVE_TRAINS[train_id]['status'] != 'cruising':
+                        ACTIVE_TRAINS[train_id] = {
+                            "line": line, "direction": direction, "from_sta": sta, "to_sta": next_sta,
+                            "dest": dest, "start_time": now, "total_duration_sec": DEFAULT_TRAVEL_TIME,
+                            "ratio": 0.0, "status": "cruising"
+                        }
+                    updated_train_ids.add(train_id)
+            
+            # 更新此站此方向的最新 API 狀態
+            LAST_API_STATE[state_key] = {'ttnt': ttnt, 'timestamp': now}
+
+        # ----------------------------------------------------
+        # 物理步進：更新所有在站間行駛列車的 Ratio (0.0 -> 1.0)
+        # ----------------------------------------------------
+        current_active_count = 0
+        for tid, t in list(ACTIVE_TRAINS.items()):
             if t['status'] == 'cruising':
                 elapsed = now - t['start_time']
                 t['ratio'] = min(1.0, elapsed / t['total_duration_sec'])
+                
+                # 如果時間到了，自動把狀態轉為月台停靠
                 if t['ratio'] >= 1.0:
                     t['status'] = 'stopped_at_station'
+                
                 current_active_count += 1
+            elif t['status'] == 'stopped_at_station':
+                current_active_count += 1
+                
+            # 如果火車在 API 更新中已經不復存在，將其移除以防幽靈火車
+            if tid not in updated_train_ids and (now - t['start_time'] > 180):
+                ACTIVE_TRAINS.pop(tid, None)
                 
         if current_active_count > PEAK_TRAIN_COUNT:
             PEAK_TRAIN_COUNT = current_active_count
 
-def mock_or_fetch_api():
-    """24小時不間斷輪詢港鐵官方正式開放數據 API，獲取荃灣線實時列車動態"""
-    # 挑選荃灣線核心樞紐車站來監聽整條線的上下行列車
-    MONITOR_STATIONS = ["CEN", "ADM", "TST", "MOK", "MEF", "LAK", "TSW"]
+# ----------------------------------------------------
+# 6. 24小時港鐵官方 API 輪詢監聽器
+# ----------------------------------------------------
+def mtr_api_fetcher_thread():
+    """輪詢港鐵官方 API 以監控全線列車"""
     BASE_URL = "https://rt.mtr.com.hk/rt_ticket-val/data/v1/transport/mtr/getSchedule.php"
     
     while True:
         formatted_trains = []
-        for sta in MONITOR_STATIONS:
+        # 輪詢荃灣線所有車站以確保 100% 列車都不漏掉
+        for sta in TWL_ORDER:
             try:
-                # 呼叫官方正式 API
                 response = requests.get(BASE_URL, params={"line": "TWL", "sta": sta}, timeout=5)
                 if response.status_code == 200:
                     res_json = response.json()
-                    
-                    # 港鐵官方格式解析：data -> LINE-STA -> UP / DOWN
                     if "data" in res_json:
                         key = f"TWL-{sta}"
                         if key in res_json["data"]:
                             sta_data = res_json["data"][key]
-                            
                             for direction in ["UP", "DOWN"]:
                                 if direction in sta_data:
                                     for t_info in sta_data[direction]:
                                         ttnt = t_info.get("ttnt", -1)
                                         dest = t_info.get("dest", "")
-                                        
-                                        if ttnt != -1:
+                                        # 只記錄 4 分鐘內即將到站的近距離列車，以精確進行物理投射
+                                        if ttnt != -1 and int(ttnt) <= 4:
                                             formatted_trains.append({
                                                 "line": "TWL",
                                                 "station": sta,
@@ -163,21 +211,24 @@ def mock_or_fetch_api():
                                                 "dest": dest
                                             })
             except Exception as e:
-                print(f"抓取車站 {sta} 異常: {e}")
-            time.sleep(0.5) # 避免請求過快被港鐵防火牆封鎖
+                print(f"抓取 {sta} 站 API 異常: {e}")
+            time.sleep(0.3) # 每次輪詢間隔 0.3 秒，避免頻率過高被 API 封鎖
             
-        # 將這一輪抓到的全線實時數據，送入我們的物理大腦比對
         if formatted_trains:
             try:
                 update_live_core_engine(formatted_trains)
             except Exception as e:
-                print(f"物理引擎運算異常: {e}")
+                print(f"物理引擎運作異常: {e}")
                 
-        # 每 15 秒重新全線輪詢一次
-        time.sleep(15)
+        # 每 12 秒全線重新輪詢一次
+        time.sleep(12)
+
+# 啟動背景 API 監聽線程
+t = threading.Thread(target=mtr_api_fetcher_thread, daemon=True)
+t.start()
 
 # ----------------------------------------------------
-# 5. 後台與地圖路由
+# 7. 後端路由 API
 # ----------------------------------------------------
 @app.route('/')
 def admin_page():
@@ -191,15 +242,16 @@ def map_page():
 def admin_dashboard_api():
     line_filter = request.args.get('line', 'TWL').upper()
     with LOCK:
-        up_count = sum(1 for t in ACTIVE_TRAINS.values() if t['line'] == line_filter and t['direction'] == 'UP' and t['status'] == 'cruising')
-        down_count = sum(1 for t in ACTIVE_TRAINS.values() if t['line'] == line_filter and t['direction'] == 'DOWN' and t['status'] == 'cruising')
+        up_count = sum(1 for t in ACTIVE_TRAINS.values() if t['line'] == line_filter and t['direction'] == 'UP')
+        down_count = sum(1 for t in ACTIVE_TRAINS.values() if t['line'] == line_filter and t['direction'] == 'DOWN')
         
         train_positions = []
         for tid, t in ACTIVE_TRAINS.items():
             if t['line'] == line_filter:
                 train_positions.append({
                     "id": tid, "from": t['from_sta'], "to": t['to_sta'],
-                    "direction": t['direction'], "ratio": t['ratio'], "status": t['status']
+                    "direction": t['direction'], "ratio": t['ratio'], "status": t['status'],
+                    "dest": t['dest']
                 })
                 
     return jsonify({
