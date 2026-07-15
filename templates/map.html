@@ -2,134 +2,299 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>MTR 列車實時位置顯示系統 - OpenStreetMap</title>
+    <title>MTR 列車實時位置顯示系統 - 實時地圖</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; background: #121418; color: #fff; }
-        header { background: #1e222b; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #E2231A; z-index: 1000; position: relative; }
-        #map { width: 100%; height: calc(100vh - 55px); background: #262626; }
-        .station-label { background: rgba(0,0,0,0.8); color: #fff; border: 1px solid #E2231A; border-radius: 4px; padding: 2px 5px; font-size: 11px; font-weight: bold; }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f4f6f9; color: #333; }
+        
+        /* 統一導航欄風格 */
+        header { 
+            background: #1e222b; 
+            color: #fff;
+            padding: 12px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 3px solid #E2231A; 
+            z-index: 1000; 
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .nav-title { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-nav { 
+            background: #E2231A; 
+            color: white; 
+            text-decoration: none; 
+            padding: 6px 14px; 
+            border-radius: 4px; 
+            font-size: 13px; 
+            font-weight: bold;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-nav:hover { background: #b91c1c; }
+
+        /* 地圖容器 */
+        #map { width: 100%; height: calc(100vh - 51px); background: #f0f0f0; }
+
+        /* 車站標籤風格 */
+        .station-label { 
+            background: rgba(255, 255, 255, 0.9); 
+            color: #222; 
+            border: 1px solid #aaa; 
+            border-radius: 3px; 
+            padding: 1px 4px; 
+            font-size: 10px; 
+            font-weight: bold; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* 🎌 日系車站彈窗風格樣式 */
+        .popup-station-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #111;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4px;
+        }
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 180px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        .popup-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        .line-stripe {
+            width: 3px;
+            height: 14px;
+            border-radius: 1px;
+        }
+        .popup-right {
+            font-weight: bold;
+            color: #333;
+        }
+        .popup-loading {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            padding: 5px 0;
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <div><i class="fa-solid fa-map-location-dot" style="color: #E2231A;"></i> MTR 所有路線列車實時位置監控系統 (OpenStreetMap)</div>
-        <a href="/" style="color: #aaa; text-decoration: none; font-size: 14px;"><i class="fa-solid fa-gauge"></i> 返回後台</a>
+        <div class="nav-title">
+            <i class="fa-solid fa-map-location-dot" style="color: #E2231A;"></i> MTR 所有路線列車實時位置監控系統
+        </div>
+        <a href="/admin" class="btn-nav">
+            <i class="fa-solid fa-chart-simple"></i> 前往數據後台
+        </a>
     </header>
 
     <div id="map"></div>
 
     <script>
-        // 1. 初始化 Leaflet 地圖，中心點定在香港 (九龍/維港中心)
-        const map = L.map('map').setView([22.3168, 114.1724], 13);
-
-        // 2. 載入 OpenStreetMap 的深色/標準地圖圖層（這裡用 CartoDB 的暗色系圖層，看火車更明顯）
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-        }).addTo(map);
-
-        // 3. 荃灣線真實車站地理坐標數據 (經緯度)
-        const STATION_COORDS = {
-            "CEN": [22.2818, 114.1582], // 中環
-            "ADM": [22.2794, 114.1645], // 金鐘
-            "TST": [22.2965, 114.1725], // 尖沙咀
-            "JOR": [22.3048, 114.1717], // 佐敦
-            "YMT": [22.3129, 114.1694], // 油麻地
-            "MOK": [22.3185, 114.1694], // 旺角
-            "PRE": [22.3248, 114.1691], // 太子
-            "SSP": [22.3307, 114.1623], // 深水埗
-            "CSW": [22.3353, 114.1558], // 長沙灣
-            "LCK": [22.3372, 114.1487], // 荔枝角
-            "MEF": [22.3364, 114.1392], // 美孚
-            "LAK": [22.3482, 114.1278], // 荔景
-            "KWF": [22.3565, 114.1277], // 葵芳
-            "KWH": [22.3637, 114.1313], // 葵興
-            "TWH": [22.3706, 114.1226], // 大窩口
-            "TSW": [22.3734, 114.1177]  // 荃灣
+        // 1. 各路線標準代表色（依照 Screenshot_20260715-233118.png 定義）
+        const LINE_COLORS = {
+            "TWL": "#E2231A", // 荃灣線
+            "KTL": "#009A3A", // 觀塘線
+            "ISL": "#005A9C", // 港島線
+            "SIL": "#B5D136", // 南港島線
+            "TKL": "#5D2D82", // 將軍澳線
+            "TCL": "#F39800", // 東涌線
+            "DRL": "#E51D75", // 迪士尼線
+            "AEL": "#007278", // 機場快線
+            "EAL": "#57B2F6", // 東鐵線
+            "TML": "#9A3820"  // 屯馬線
         };
 
-        const STATION_NAMES = {
+        // 車站名稱中英文映射對照（後端 API 代碼對應）
+        const ST_NAMES = {
             "CEN":"中環", "ADM":"金鐘", "TST":"尖沙咀", "JOR":"佐敦", "YMT":"油麻地",
             "MOK":"旺角", "PRE":"太子", "SSP":"深水埗", "CSW":"長沙灣", "LCK":"荔枝角",
             "MEF":"美孚", "LAK":"荔景", "KWF":"葵芳", "KWH":"葵興", "TWH":"大窩口", "TSW":"荃灣"
         };
 
-        // 4. 在地圖上繪製車站點與標籤
-        for (let code in STATION_COORDS) {
-            let pos = STATION_COORDS[code];
-            // 畫一個小圓點代表車站
-            L.circleMarker(pos, {
-                radius: 6,
-                color: '#E2231A',
-                fillColor: '#fff',
-                fillOpacity: 1,
-                weight: 2
-            }).addTo(map);
+        // 2. 初始化 Leaflet 地圖，設定為淺色/白色風格底圖
+        const map = L.map('map').setView([22.32, 114.16], 12);
+        
+        // 載入 CartoDB Positron 亮色地圖，適合清晰顯示彩色軌道與車站點
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
 
-            // 加上車站名字文字標籤
-            L.marker(pos, { opacity: 0 })
-                .bindTooltip(STATION_NAMES[code], { permanent: true, direction: 'bottom', className: 'station-label' })
-                .addTo(map);
-        }
+        // 用於儲存加載完畢的車站坐標字典 {STATION_CODE: [lat, lng]}
+        let loadedStationCoords = {};
 
-        // 用於儲存地圖上所有火車 Marker 的物件
+        // 3. 讀取並繪製你的車站 (StationLocation_2026_06.geojson)
+        fetch('/static/StationLocation_2026_06.geojson')
+            .then(r => r.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    filter: function(feature) {
+                        // 目前先繪製荃灣線 (TWL) 車站以供驗證
+                        return feature.properties.RouteCode === "TWL";
+                    },
+                    pointToLayer: function(feature, latlng) {
+                        const code = feature.properties.StationCode;
+                        const nameZh = feature.properties["StationName:zh"];
+                        const rCode = feature.properties.RouteCode;
+                        const color = LINE_COLORS[rCode] || "#E2231A";
+
+                        // 儲存至坐標庫供列車插值物理引擎使用
+                        loadedStationCoords[code] = [latlng.lat, latlng.lng];
+
+                        // 繪製黑框白底圓點
+                        const marker = L.circleMarker(latlng, {
+                            radius: 5.5,
+                            color: '#000000',
+                            weight: 2,
+                            fillColor: '#ffffff',
+                            fillOpacity: 1
+                        });
+
+                        // 綁定車站名稱 Tooltip 標籤
+                        marker.bindTooltip(nameZh, {
+                            permanent: true,
+                            direction: 'top',
+                            offset: [0, -5],
+                            className: 'station-label'
+                        });
+
+                        // 點擊車站：動態、即時發送 API 請求最新 TTNT，並渲染日系彈窗
+                        marker.on('click', function() {
+                            const popup = L.popup()
+                                .setLatLng(latlng)
+                                .setContent(`
+                                    <div class="popup-station-title">${nameZh} (${code})</div>
+                                    <div class="popup-loading"><i class="fa-solid fa-spinner fa-spin"></i> 正在獲取實時班次...</div>
+                                `)
+                                .openOn(map);
+
+                            // 向我們的新 API 請求該站即時班次
+                            fetch(`/api/station/schedule?sta=${code}&line=${rCode}`)
+                                .then(res => res.json())
+                                .then(apiRes => {
+                                    let html = `<div class="popup-station-title">${nameZh} (${code})</div>`;
+                                    let scheduleKey = `${rCode}-${code}`;
+                                    
+                                    if (apiRes.data && apiRes.data[scheduleKey]) {
+                                        const directions = apiRes.data[scheduleKey];
+                                        let rowsHtml = '';
+                                        
+                                        // 遍歷上行/下行 (UP/DOWN)
+                                        ["UP", "DOWN"].forEach(dir => {
+                                            if (directions[dir] && directions[dir].length > 0) {
+                                                const nextTrain = directions[dir][0]; // 取最快到站的一班
+                                                const destCode = nextTrain.dest;
+                                                const destName = ST_NAMES[destCode] || destCode;
+                                                const ttnt = nextTrain.ttnt;
+                                                const displayTime = ttnt === "0" ? "正在進站" : `${ttnt} 分鐘`;
+
+                                                rowsHtml += `
+                                                    <div class="popup-row">
+                                                        <div class="popup-left">
+                                                            <div class="line-stripe" style="background: ${color};"></div>
+                                                            往 ${destName}
+                                                        </div>
+                                                        <div class="popup-right">${displayTime}</div>
+                                                    </div>
+                                                `;
+                                            }
+                                        });
+
+                                        if (rowsHtml === '') {
+                                            rowsHtml = '<div class="popup-loading">暫無即時班次資料</div>';
+                                        }
+                                        html += rowsHtml;
+                                    } else {
+                                        html += '<div class="popup-loading">無法取得班次數據</div>';
+                                    }
+                                    popup.setContent(html);
+                                })
+                                .catch(err => {
+                                    popup.setContent(`<div class="popup-station-title">${nameZh}</div><div class="popup-loading">數據讀取失敗</div>`);
+                                });
+                        });
+
+                        return marker;
+                    }
+                }).addTo(map);
+            });
+
+        // 4. 讀取並繪製你的軌道折線 (Track.TsuenWanLine.geojson)
+        fetch('/static/Track.TsuenWanLine.geojson')
+            .then(r => r.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        return {
+                            color: LINE_COLORS["TWL"], // 紅色軌道
+                            weight: 3.5,
+                            opacity: 0.85
+                        };
+                    }
+                }).addTo(map);
+            });
+
+        // 5. 列車動態物理地圖繪製 (保留擴充與沿軌移動結構，等待你的確認)
         let trainMarkers = {};
 
-        // 5. 實時從後端 API 獲取列車物理位置並更新到 OpenStreetMap 上
-        function updateTrainsOnMap() {
-            // 這裡我們會同時獲取多條線路的數據，目前先請求預設的監控 API
+        function updateTrains() {
             fetch('/api/admin/dashboard?line=TWL')
                 .then(r => r.json())
                 .then(d => {
-                    // 建立一個當前活動火車 ID 的集合，用於清除已經消失的火車
-                    let activeTids = new Set();
-
+                    let activeIds = new Set();
                     d.active_trains.forEach(t => {
-                        const fromCoord = STATION_COORDS[t.from];
-                        const toCoord = STATION_COORDS[t.to];
+                        activeIds.add(t.id);
+                        const fromPos = loadedStationCoords[t.from];
+                        const toPos = loadedStationCoords[t.to];
 
-                        if (fromCoord && toCoord) {
-                            activeTids.add(t.id);
+                        if (fromPos && toPos) {
+                            // 暫時使用直線比例插值 (後續確認後可升級為沿軌道多折點精確插值)
+                            const currentLat = fromPos[0] + (toPos[0] - fromPos[0]) * t.ratio;
+                            const currentLng = fromPos[1] + (toPos[1] - fromPos[1]) * t.ratio;
 
-                            // 🎯 核心物理地理投影：利用 Ratio 計算火車在兩個經緯度之間的實時坐標
-                            const currentLat = fromCoord[0] + (toCoord[0] - fromCoord[0]) * t.ratio;
-                            const currentLng = fromCoord[1] + (toCoord[1] - fromCoord[1]) * t.ratio;
-
-                            // 自訂火車圖示 (使用 FontAwesome 的火車 icon)
                             const trainIcon = L.divIcon({
-                                html: `<i class="fa-solid fa-train-subway" style="color: #ffca28; font-size: 18px; text-shadow: 0 0 5px rgba(0,0,0,0.5);"></i>`,
-                                iconSize: [20, 20],
+                                html: `<i class="fa-solid fa-train-subway" style="color: #e5a93c; font-size: 16px; text-shadow: 0px 0px 4px rgba(0,0,0,0.6);"></i>`,
+                                iconSize: [16, 16],
                                 className: 'custom-train-icon'
                             });
 
                             if (trainMarkers[t.id]) {
-                                // 如果火車已經在地圖上，直接更新它的地理坐標
                                 trainMarkers[t.id].setLatLng([currentLat, currentLng]);
                             } else {
-                                // 如果是新出現的火車，建立新的 Marker 並加到 OSM 地圖中
-                                trainMarkers[t.id] = L.marker([currentLat, currentLng], { icon: trainIcon })
-                                    .addTo(map)
-                                    .bindPopup(`<b>列車 ID:</b> ${t.id}<br><b>下一站:</b> ${STATION_NAMES[t.to]}<br><b>行駛狀態:</b> ${t.status}`);
+                                trainMarkers[t.id] = L.marker([currentLat, currentLng], { icon: trainIcon }).addTo(map);
                             }
                         }
                     });
 
-                    // 清除已經到站消失或不在線上的火車 Marker
-                    for (let tid in trainMarkers) {
-                        if (!activeTids.has(tid)) {
-                            map.removeLayer(trainMarkers[tid]);
-                            delete trainMarkers[tid];
+                    // 移除消失的列車
+                    for (let id in trainMarkers) {
+                        if (!activeIds.has(id)) {
+                            map.removeLayer(trainMarkers[id]);
+                            delete trainMarkers[id];
                         }
                     }
                 });
         }
 
-        // 每 1 秒執行一次地圖刷新，確保火車在 OpenStreetMap 上移動流暢
-        setInterval(updateTrainsOnMap, 1000);
+        // 每秒檢查與平滑移動列車點
+        setInterval(updateTrains, 1000);
     </script>
 </body>
 </html>
