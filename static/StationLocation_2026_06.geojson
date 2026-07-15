@@ -1,0 +1,1770 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.934199,
+                    22.281481
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "StationName:zh": "東涌西站",
+                "StationName:en": "Tung Chung West Station",
+                "StationCode": "NIL"
+            },
+            "id": 0
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.941378,
+                    22.289237
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "StationName:zh": "東涌站",
+                "StationName:en": "Tung Chung Station",
+                "StationCode": "TUC"
+            },
+            "id": 1
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.958665,
+                    22.297264
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "StationName:zh": "東涌東站",
+                "StationName:en": "Tung Chung East Station",
+                "StationCode": "NIL"
+            },
+            "id": 2
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.980053,
+                    22.304789
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "StationName:zh": "小蠔灣站",
+                "StationName:en": "Tung Chung Station",
+                "StationCode": "NIL"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.028764,
+                    22.331844
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "RouteCode2": "DRL",
+                "StationName:zh": "欣澳站",
+                "StationName:en": "Sunny Bay Station",
+                "StationCode": "SUN"
+            },
+            "id": 4
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.107434,
+                    22.358361
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "RouteCode2": "AEL",
+                "StationName:zh": "青衣站",
+                "StationName:en": "Tsing Yi Station",
+                "StationCode": "TSY"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.126049,
+                    22.348448
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "RouteCode2": "TWL",
+                "StationName:zh": "茘景站",
+                "StationName:en": "Lai King Station",
+                "StationCode": "LAK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.153756,
+                    22.326287
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "RouteCode2": "TML",
+                "StationName:zh": "南昌站",
+                "StationName:en": "Nam Cheong Station",
+                "StationCode": "NAC"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.160264,
+                    22.31773
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "StationName:zh": "奧運站",
+                "StationName:en": "Olympic Station",
+                "StationCode": "OLY"
+            },
+            "id": 8
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.161593,
+                    22.304927
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "RouteCode2": "AEL",
+                "StationName:zh": "九龍站",
+                "StationName:en": "Kowloon Station",
+                "StationCode": "KOW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.158516,
+                    22.284976
+                ]
+            },
+            "properties": {
+                "RouteCode": "TCL",
+                "RouteCode2": "AEL",
+                "StationName:zh": "香港站",
+                "StationName:en": "Hong Kong Station",
+                "StationCode": "HOK"
+            },
+            "id": 10
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.936508,
+                    22.316109
+                ]
+            },
+            "properties": {
+                "RouteCode": "AEL",
+                "StationName:zh": "機場站",
+                "StationName:en": "Airport Station",
+                "StationCode": "AIR"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.942231,
+                    22.321981
+                ]
+            },
+            "properties": {
+                "RouteCode": "AEL",
+                "StationName:zh": "博覽館站",
+                "StationName:en": "AsiaWorld-Expo Station",
+                "StationCode": "AWE"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.128551,
+                    22.28128
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "堅尼地城站",
+                "StationName:en": "Kennedy Town Station",
+                "StationCode": "KET"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.135438,
+                    22.284043
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "香港大學站",
+                "StationName:en": "HKU Station",
+                "StationCode": "HKU"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.142703,
+                    22.28549
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "西營盤站",
+                "StationName:en": "Sai Ying Pun Station",
+                "StationCode": "SYP"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.151887,
+                    22.286591
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "上環站",
+                "StationName:en": "Sheung Wan Station",
+                "StationCode": "SHW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.157872,
+                    22.281969
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "RouteCode2": "TWL",
+                "StationName:zh": "中環站",
+                "StationName:en": "Central Station",
+                "StationCode": "CEN"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.166129,
+                    22.279007
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "RouteCode2": "TWL",
+                "RouteCode3": "EAL",
+                "RouteCode4": "SIL",
+                "StationName:zh": "金鐘站",
+                "StationName:en": "Admiralty Station",
+                "StationCode": "ADM"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.173277,
+                    22.277633
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "灣仔站",
+                "StationName:en": "Wan Chai Station",
+                "StationCode": "WAC"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.183488,
+                    22.280098
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "銅鑼灣站",
+                "StationName:en": "Causeway Bay Station",
+                "StationCode": "CAB"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.191942,
+                    22.282332
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "天后站",
+                "StationName:en": "Tin Hau Station",
+                "StationCode": "TIH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.193525,
+                    22.287774
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "炮台山站",
+                "StationName:en": "Fortress Hill Station",
+                "StationCode": "FOH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.200299,
+                    22.291189
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "RouteCode2": "TKL",
+                "StationName:zh": "北角站",
+                "StationName:en": "North Point Station",
+                "StationCode": "NOP"
+            },
+            "id": 23
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.208999,
+                    22.288175
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "RouteCode2": "TKL",
+                "StationName:zh": "鰂魚涌站",
+                "StationName:en": "Quarry Bay Station",
+                "StationCode": "QUB"
+            },
+            "id": 24
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.216077,
+                    22.284654
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "太古站",
+                "StationName:en": "Tai Koo Station",
+                "StationCode": "TAK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.221748,
+                    22.282323
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "西灣河站",
+                "StationName:en": "Sai Wan Ho Station",
+                "StationCode": "SWH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.228838,
+                    22.279172
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "筲箕灣站",
+                "StationName:en": "Shau Kei Wan Station",
+                "StationCode": "SKW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.23972,
+                    22.276669
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "杏花邨站",
+                "StationName:en": "Heng Fa Chuen Station",
+                "StationCode": "HFC"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.237158,
+                    22.264639
+                ]
+            },
+            "properties": {
+                "RouteCode": "ISL",
+                "StationName:zh": "柴灣站",
+                "StationName:en": "Chai Wan Station",
+                "StationCode": "CHW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.174424,
+                    22.248695
+                ]
+            },
+            "properties": {
+                "RouteCode": "SIL",
+                "StationName:zh": "海洋公園站",
+                "StationName:en": "Ocean Park Station",
+                "StationCode": "OCP"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.167479,
+                    22.247888
+                ]
+            },
+            "properties": {
+                "RouteCode": "SIL",
+                "StationName:zh": "黃竹坑站",
+                "StationName:en": "Wong Chuk Hang Station",
+                "StationCode": "WCH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.156062,
+                    22.241934
+                ]
+            },
+            "properties": {
+                "RouteCode": "SIL",
+                "StationName:zh": "利東站",
+                "StationName:en": "Lei Tung Station",
+                "StationCode": "LET"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.149048,
+                    22.242532
+                ]
+            },
+            "properties": {
+                "RouteCode": "SIL",
+                "StationName:zh": "海怡半島站",
+                "StationName:en": "South Horizons Station",
+                "StationCode": "SOH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.966067,
+                    22.375461
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "屯門南站",
+                "StationName:en": "Tuen Mun South Station",
+                "StationCode": "NIL"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.96892,
+                    22.384525
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "A16站",
+                "StationName:en": "A16 Station",
+                "StationCode": "NIL"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.973209,
+                    22.395425
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "屯門站",
+                "StationName:en": "Tuen Mun Station",
+                "StationCode": "TUM"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.978826,
+                    22.41144
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "兆康站",
+                "StationName:en": "Siu Hong Station",
+                "StationCode": "SIH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.988614,
+                    22.432034
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "洪水橋站",
+                "StationName:en": "Hung Shui Kiu Station",
+                "StationCode": "NIL"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.004883,
+                    22.448347
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "天水圍站",
+                "StationName:en": "Tin Shui Wai Station",
+                "StationCode": "TIS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.025413,
+                    22.447679
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "朗屏站",
+                "StationName:en": "Long Ping Station",
+                "StationCode": "LOP"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.035212,
+                    22.446078
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "元朗站",
+                "StationName:en": "Yuen Long Station",
+                "StationCode": "YUL"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.063403,
+                    22.434835
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "RouteCode2": "NOL",
+                "StationName:zh": "錦上路站",
+                "StationName:en": "Kam Sheung Road Station",
+                "StationCode": "KSR"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.110016,
+                    22.368451
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "荃灣西站",
+                "StationName:en": "Tsuen Wan West Station",
+                "StationCode": "TWW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.136548,
+                    22.339088
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "RouteCode2": "TWL",
+                "StationName:zh": "美孚站",
+                "StationName:en": "Mei Foo Station",
+                "StationCode": "MEF"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.166594,
+                    22.304249
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "柯士甸站",
+                "StationName:en": "Austin Station",
+                "StationCode": "AUS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.175074,
+                    22.29556
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "尖東站",
+                "StationName:en": "East Tsim Sha Tsui Station",
+                "StationCode": "ETS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.182271,
+                    22.302906
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "RouteCode2": "EAL",
+                "StationName:zh": "紅磡站",
+                "StationName:en": "Hung Hom Station",
+                "StationCode": "HUH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.182596,
+                    22.309319
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "RouteCode2": "KTL",
+                "StationName:zh": "何文田站",
+                "StationName:en": "Ho Man Tin Station",
+                "StationCode": "HOM"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.187572,
+                    22.316914
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "土瓜灣站",
+                "StationName:en": "To Kwa Wan Station",
+                "StationCode": "TKW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.191348,
+                    22.325931
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "宋皇臺站",
+                "StationName:en": "Sung Wong Toi Station",
+                "StationCode": "SUM"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.199404,
+                    22.330495
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "啟德站",
+                "StationName:en": "Kai Tak Station",
+                "StationCode": "KAT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.201273,
+                    22.339801
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "RouteCode2": "KTL",
+                "StationName:zh": "鑽石山站",
+                "StationName:en": "Diamond Hill Station",
+                "StationCode": "DIH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.170798,
+                    22.363931
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "顯徑站",
+                "StationName:en": "Hin Keng Station",
+                "StationCode": "HIK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.178824,
+                    22.37307
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "RouteCode2": "EAL",
+                "StationName:zh": "大圍站",
+                "StationName:en": "Tai Wai Station",
+                "StationCode": "TAW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.186152,
+                    22.374776
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "車公廟站",
+                "StationName:en": "Che Kung Temple Station",
+                "StationCode": "CKT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.194965,
+                    22.377033
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "沙田圍站",
+                "StationName:en": "Sha Tin Wai Station",
+                "StationCode": "STW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.203489,
+                    22.382791
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "第一城站",
+                "StationName:en": "City One Station",
+                "StationCode": "CIO"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.208421,
+                    22.38778
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "石門站",
+                "StationName:en": "Shek Mun Station",
+                "StationCode": "SHM"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.222917,
+                    22.408748
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "大水坑站",
+                "StationName:en": "Tai Shui Hang Station",
+                "StationCode": "TSH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.225731,
+                    22.417458
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "恆安站",
+                "StationName:en": "Heng On Station",
+                "StationCode": "HEO"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.231581,
+                    22.424789
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "馬鞍山站",
+                "StationName:en": "Ma On Shan Station",
+                "StationCode": "MOS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.243992,
+                    22.429172
+                ]
+            },
+            "properties": {
+                "RouteCode": "TML",
+                "StationName:zh": "烏溪沙站",
+                "StationName:en": "Wu Kai Sha Station",
+                "StationCode": "WKS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.175843,
+                    22.281624
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "會展站",
+                "StationName:en": "Exhibition Centre Station",
+                "StationCode": "EXC"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.172568,
+                    22.32181
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "旺角東站",
+                "StationName:en": "Mong Kok East Station",
+                "StationCode": "MKK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.175911,
+                    22.336848
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "RouteCode2": "KTL",
+                "StationName:zh": "九龍塘站",
+                "StationName:en": "Kowloon Tong Station",
+                "StationCode": "KOT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.187375,
+                    22.382515
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "沙田站",
+                "StationName:en": "Sha Tin Station",
+                "StationCode": "SHT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.198364,
+                    22.39552
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "火炭站",
+                "StationName:en": "Fo Tan Station",
+                "StationCode": "FOT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.202847,
+                    22.400344
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "馬場站",
+                "StationName:en": "Racecourse Station",
+                "StationCode": "RAC"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.210088,
+                    22.413701
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "大學站",
+                "StationName:en": "University Station",
+                "StationCode": "UNI"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.170646,
+                    22.444663
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "大埔墟站",
+                "StationName:en": "Tai Po Market Station",
+                "StationCode": "TAP"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.161151,
+                    22.451046
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "太和站",
+                "StationName:en": "Tai Wo Station",
+                "StationCode": "TWO"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.13864,
+                    22.492158
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "粉嶺站",
+                "StationName:en": "Fanling Station",
+                "StationCode": "FAN"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.128021,
+                    22.501179
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "上水站",
+                "StationName:en": "Sheung Shui Station",
+                "StationCode": "SHS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.113398,
+                    22.527291
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "羅湖站",
+                "StationName:en": "Lo Wu Station",
+                "StationCode": "LOW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.100188,
+                    22.507643
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "RouteCode2": "NOL",
+                "StationName:zh": "古洞站",
+                "StationName:en": "Kwu Tung Station",
+                "StationCode": "NIL"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.065688,
+                    22.514437
+                ]
+            },
+            "properties": {
+                "RouteCode": "EAL",
+                "StationName:zh": "落馬洲站",
+                "StationName:en": "Lok Ma Chau Station",
+                "StationCode": "LMC"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.117723,
+                    22.373702
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "荃灣站",
+                "StationName:en": "Tsuen Wan Station",
+                "StationCode": "TSW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.124904,
+                    22.370748
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "大窩口站",
+                "StationName:en": "Tai Wo Hau Station",
+                "StationCode": "TWH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.13119,
+                    22.363226
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "葵興站",
+                "StationName:en": "Kwai Hing Station",
+                "StationCode": "KWH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.127843,
+                    22.356908
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "葵芳站",
+                "StationName:en": "Kwai Fong Station",
+                "StationCode": "KWF"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.148399,
+                    22.337389
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "茘枝角站",
+                "StationName:en": "Lai Chi Kok Station",
+                "StationCode": "LCK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.156149,
+                    22.33552
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "長沙灣站",
+                "StationName:en": "Cheung Sha Wan Station",
+                "StationCode": "CSW"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.162316,
+                    22.330734
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "深水埗站",
+                "StationName:en": "Sham Shui Po Station",
+                "StationCode": "SSP"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.1683,
+                    22.324457
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "RouteCode2": "KTL",
+                "StationName:zh": "太子站",
+                "StationName:en": "Prince Edward Station",
+                "StationCode": "PRE"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.169373,
+                    22.31927
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "RouteCode2": "KTL",
+                "StationName:zh": "旺角站",
+                "StationName:en": "Mong Kok Station",
+                "StationCode": "MOK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.170663,
+                    22.31301
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "RouteCode2": "KTL",
+                "StationName:zh": "油麻地站",
+                "StationName:en": "Yau Ma Tei Station",
+                "StationCode": "YMT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.171627,
+                    22.305295
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "佐敦站",
+                "StationName:en": "Jordan Station",
+                "StationCode": "JOR"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.172176,
+                    22.297417
+                ]
+            },
+            "properties": {
+                "RouteCode": "TWL",
+                "StationName:zh": "尖沙咀站",
+                "StationName:en": "Tsim Sha Tsui Station",
+                "StationCode": "TST"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.189524,
+                    22.305032
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "黃埔站",
+                "StationName:en": "Whampoa Station",
+                "StationCode": "WHA"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.168848,
+                    22.331977
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "石硤尾站",
+                "StationName:en": "Shek Kip Mei Station",
+                "StationCode": "SKM"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.18697,
+                    22.337934
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "樂富站",
+                "StationName:en": "Lok Fu Station",
+                "StationCode": "LOF"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.194164,
+                    22.341717
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "黃大仙站",
+                "StationName:en": "Wong Tai Sin Station",
+                "StationCode": "WTS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.208824,
+                    22.335152
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "彩虹站",
+                "StationName:en": "Choi Hung Station",
+                "StationCode": "CHH"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.21407,
+                    22.323546
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "九龍灣站",
+                "StationName:en": "Kowloon Bay Station",
+                "StationCode": "KOB"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.219114,
+                    22.315397
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "牛頭角站",
+                "StationName:en": "Ngau Tau Kok Station",
+                "StationCode": "NTK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.226511,
+                    22.312165
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "觀塘站",
+                "StationName:en": "Kwun Tong Station",
+                "StationCode": "KWT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.232962,
+                    22.306734
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "StationName:zh": "藍田站",
+                "StationName:en": "Lam Tin Station",
+                "StationCode": "LAT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.237198,
+                    22.297749
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "RouteCode2": "TKL",
+                "StationName:zh": "油塘站",
+                "StationName:en": "Yau Tong Station",
+                "StationCode": "YAT"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.252199,
+                    22.303929
+                ]
+            },
+            "properties": {
+                "RouteCode": "KTL",
+                "RouteCode2": "TKL",
+                "StationName:zh": "調景嶺站",
+                "StationName:en": "Tiu Keng Leng Station",
+                "StationCode": "TIK"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.259998,
+                    22.30739
+                ]
+            },
+            "properties": {
+                "RouteCode": "TKL",
+                "StationName:zh": "將軍澳站",
+                "StationName:en": "Tseung Kwan O Station",
+                "StationCode": "TKO"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.264332,
+                    22.315596
+                ]
+            },
+            "properties": {
+                "RouteCode": "TKL",
+                "StationName:zh": "坑口站",
+                "StationName:en": "Hang Hau Station",
+                "StationCode": "HAH"
+            },
+            "id": 101
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.257997,
+                    22.322549
+                ]
+            },
+            "properties": {
+                "RouteCode": "TKL",
+                "StationName:zh": "寶琳站",
+                "StationName:en": "Po Lam Station",
+                "StationCode": "POA"
+            },
+            "id": 102
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.268752,
+                    22.295554
+                ]
+            },
+            "properties": {
+                "RouteCode": "TKL",
+                "StationName:zh": "康城站",
+                "StationName:en": "LOHAS Park Station",
+                "StationCode": "LHP"
+            },
+            "id": 103
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.045252,
+                    22.315519
+                ]
+            },
+            "properties": {
+                "RouteCode": "DRL",
+                "StationName:zh": "迪士尼站",
+                "StationName:en": "Disneyland Resort Station",
+                "StationCode": "DIS"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.052863,
+                    22.457186
+                ]
+            },
+            "properties": {
+                "RouteCode": "NOL",
+                "StationName:zh": "凹頭站",
+                "StationName:en": "Au Tau Station",
+                "StationCode": "NIL"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.062025,
+                    22.475638
+                ]
+            },
+            "properties": {
+                "RouteCode": "NOL",
+                "StationName:zh": "牛潭尾",
+                "StationName:en": "Ngau Tam Mei Station",
+                "StationCode": "NIL"
+            },
+            "id": 106
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.072532,
+                    22.487846
+                ]
+            },
+            "properties": {
+                "RouteCode": "NOL",
+                "StationName:zh": "新田",
+                "StationName:en": "San Tin Station",
+                "StationCode": "NIL"
+            }
+        }
+    ]
+}
