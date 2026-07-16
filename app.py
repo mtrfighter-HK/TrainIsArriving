@@ -160,12 +160,12 @@ def update_live_core_engine(api_train_data):
             PEAK_TRAIN_COUNT = current_active_count
 
 # ----------------------------------------------------
-# 6. 港鐵官方 API 輪詢監聽器（🎯 加入偵錯 logs 且放寬過濾條件）
+# 6. 港鐵官方 API 輪詢監聽器（保持不變）
 # ----------------------------------------------------
 def mtr_api_fetcher_thread():
     BASE_URL = "https://rt.mtr.com.hk/rt_ticket-val/data/v1/transport/mtr/getSchedule.php"
     
-    print("[MTR Core] 實時數據監聽背景線程已啟動...")
+    print("[MTR Core] 🚀 實時數據監聽背景線程正在強行啟動中...", flush=True)
     while True:
         formatted_trains = []
         success_count = 0
@@ -186,7 +186,6 @@ def mtr_api_fetcher_thread():
                                     for t_info in sta_data[direction]:
                                         ttnt = t_info.get("ttnt", -1)
                                         dest = t_info.get("dest", "")
-                                        # 🎯 偵錯與放寬：只要 ttnt 存在，不限分鐘，全部送去運算！
                                         if ttnt != -1 and ttnt != "":
                                             formatted_trains.append({
                                                 "line": "TWL",
@@ -199,25 +198,40 @@ def mtr_api_fetcher_thread():
                     fail_count += 1
             except Exception as e:
                 fail_count += 1
-            time.sleep(0.15) # 稍微縮短單站延遲，加快輪詢速度
+            time.sleep(0.15)
             
-        # 🎯 在 Render 控制台印出每輪 API 獲取狀態與數據量
-        print(f"[MTR Log] {datetime.datetime.now().strftime('%H:%M:%S')} | 車站輪詢成功: {success_count}/16 | 失敗: {fail_count} | 捕捉到實時列車班次: {len(formatted_trains)} 班")
+        print(f"[MTR Log] {datetime.datetime.now().strftime('%H:%M:%S')} | 車站輪詢成功: {success_count}/16 | 失敗: {fail_count} | 捕捉到實時列車班次: {len(formatted_trains)} 班", flush=True)
         
         if formatted_trains:
             try:
                 update_live_core_engine(formatted_trains)
-                print(f"[MTR Log] 物理引擎更新完畢。當前活動列車總數: {len(ACTIVE_TRAINS)}")
+                print(f"[MTR Log] 物理引擎更新完畢。當前活動列車總數: {len(ACTIVE_TRAINS)}", flush=True)
             except Exception as e:
-                print(f"[MTR Log] ⚠️ 物理引擎更新異常: {e}")
+                print(f"[MTR Log] ⚠️ 物理引擎更新異常: {e}", flush=True)
                 
         time.sleep(12)
 
-t = threading.Thread(target=mtr_api_fetcher_thread, daemon=True)
-t.start()
 
 # ----------------------------------------------------
-# 7. 後端路由
+# 🔒 關鍵修正：確保執行緒安全啟動，加入 flush=True 逼迫 Render 立刻印出 Log
+# ----------------------------------------------------
+THREAD_STARTED = False
+
+@app.before_request
+def start_background_threads():
+    global THREAD_STARTED
+    if not THREAD_STARTED:
+        with LOCK:
+            if not THREAD_STARTED:
+                print("[MTR Core] 🛑 檢測到系統首次請求，正在建立背景監聽線程...", flush=True)
+                t = threading.Thread(target=mtr_api_fetcher_thread, daemon=True)
+                t.start()
+                THREAD_STARTED = True
+                print("[MTR Core] 🎉 背景監聽線程已成功成功派駐！", flush=True)
+
+
+# ----------------------------------------------------
+# 7. 後端路由（保持不變）
 # ----------------------------------------------------
 @app.route('/')
 def map_page():
@@ -231,10 +245,8 @@ def admin_page():
 def station_schedule_api():
     sta = request.args.get('sta', '').upper()
     line = request.args.get('line', 'TWL').upper()
-    
     if not sta:
         return jsonify({"error": "Missing station code"}), 400
-        
     BASE_URL = "https://rt.mtr.com.hk/rt_ticket-val/data/v1/transport/mtr/getSchedule.php"
     try:
         response = requests.get(BASE_URL, params={"line": line, "sta": sta}, timeout=5)
@@ -242,7 +254,6 @@ def station_schedule_api():
             return jsonify(response.json())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-        
     return jsonify({"error": "Failed to fetch data"}), 500
 
 @app.route('/api/admin/dashboard')
