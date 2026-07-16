@@ -163,22 +163,39 @@ def update_live_core_engine(api_train_data):
 # 6. 港鐵官方 API 輪詢監聽器（保持不變）
 # ----------------------------------------------------
 def mtr_api_fetcher_thread():
-    BASE_URL = "https://rt.mtr.com.hk/rt_ticket-val/data/v1/transport/mtr/getSchedule.php"
+    # 🎯 核心修正：根據官方 v1.6 Spec，改用 data.gov.hk 正統開放數據 URL
+    BASE_URL = "https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php"
     
-    print("[MTR Core] 🚀 實時數據監聽背景線程正在強行啟動中...", flush=True)
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+    
+    print("[MTR Core] 🚀 已切換至官方政府開放數據渠道，正宗 API 背景監聽開工...", flush=True)
     while True:
         formatted_trains = []
         success_count = 0
         fail_count = 0
+        last_error_msg = ""
         
         for sta in TWL_ORDER:
             try:
-                response = requests.get(BASE_URL, params={"line": "TWL", "sta": sta}, timeout=5)
+                # 🎯 嚴格按照手冊傳入參數 (line=TWL, sta=車站代碼)
+                response = requests.get(
+                    BASE_URL, 
+                    params={"line": "TWL", "sta": sta}, 
+                    headers=HEADERS, 
+                    timeout=6
+                )
+                
                 if response.status_code == 200:
                     res_json = response.json()
-                    success_count += 1
-                    if "data" in res_json:
+                    
+                    # 按照 Spec 規範，回傳結果 status: 1 代表正常
+                    if res_json.get("status") == 1 and "data" in res_json:
+                        success_count += 1
                         key = f"TWL-{sta}"
+                        
                         if key in res_json["data"]:
                             sta_data = res_json["data"][key]
                             for direction in ["UP", "DOWN"]:
@@ -186,6 +203,8 @@ def mtr_api_fetcher_thread():
                                     for t_info in sta_data[direction]:
                                         ttnt = t_info.get("ttnt", -1)
                                         dest = t_info.get("dest", "")
+                                        
+                                        # 有班次且數值健全時送入物理引擎
                                         if ttnt != -1 and ttnt != "":
                                             formatted_trains.append({
                                                 "line": "TWL",
@@ -194,23 +213,30 @@ def mtr_api_fetcher_thread():
                                                 "ttnt": int(ttnt),
                                                 "dest": dest
                                             })
+                    else:
+                        fail_count += 1
+                        last_error_msg = f"API 業務報錯 (status={res_json.get('status')})"
                 else:
                     fail_count += 1
+                    last_error_msg = f"HTTP 狀態碼: {response.status_code}"
             except Exception as e:
                 fail_count += 1
-            time.sleep(0.15)
+                last_error_msg = str(e)
+                
+            # 控制頻率，優雅輪詢
+            time.sleep(0.2)
             
-        print(f"[MTR Log] {datetime.datetime.now().strftime('%H:%M:%S')} | 車站輪詢成功: {success_count}/16 | 失敗: {fail_count} | 捕捉到實時列車班次: {len(formatted_trains)} 班", flush=True)
+        error_report = f" | ⚠️ 錯誤提示: {last_error_msg}" if fail_count > 0 else ""
+        print(f"[MTR Log] {datetime.datetime.now().strftime('%H:%M:%S')} | 渠道: data.gov.hk | 輪詢成功: {success_count}/16 | 失敗: {fail_count}{error_report} | 捕捉列車: {len(formatted_trains)} 班", flush=True)
         
         if formatted_trains:
             try:
                 update_live_core_engine(formatted_trains)
-                print(f"[MTR Log] 物理引擎更新完畢。當前活動列車總數: {len(ACTIVE_TRAINS)}", flush=True)
+                print(f"[MTR Log] 🚂 物理引擎演算完畢。當前活動列車總數: {len(ACTIVE_TRAINS)}", flush=True)
             except Exception as e:
                 print(f"[MTR Log] ⚠️ 物理引擎更新異常: {e}", flush=True)
                 
         time.sleep(12)
-
 
 # ----------------------------------------------------
 # 🔒 關鍵修正：確保執行緒安全啟動，加入 flush=True 逼迫 Render 立刻印出 Log
