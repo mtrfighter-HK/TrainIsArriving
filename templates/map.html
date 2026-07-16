@@ -257,7 +257,7 @@
                 }).addTo(map);
             });
 
-        // 列車動態物理地圖繪製
+               // 列車動態物理地圖繪製
         let trainMarkers = {};
 
         function updateTrains() {
@@ -271,11 +271,19 @@
                         const toPos = loadedStationCoords[t.to];
 
                         if (fromPos && toPos) {
-                            const currentLat = fromPos[0] + (toPos[0] - fromPos[0]) * t.ratio;
-                            const currentLng = fromPos[1] + (toPos[1] - fromPos[1]) * t.ratio;
+                            // 🎯 修正核心：如果比率為 0 且在行駛中，強制賦予 0.1 的微小進度，防止列車隱形
+                            let currentRatio = t.ratio;
+                            if (t.status === 'cruising' && currentRatio === 0) {
+                                currentRatio = 0.1; 
+                            }
 
+                            const currentLat = fromPos[0] + (toPos[0] - fromPos[0]) * currentRatio;
+                            const currentLng = fromPos[1] + (toPos[1] - fromPos[1]) * currentRatio;
+
+                            // 根據方向改變火車微調顏色（上行橘黃色，下行金黃色，方便辨識）
+                            const trainColor = t.direction === "UP" ? "#ff9800" : "#f59e0b";
                             const trainIcon = L.divIcon({
-                                html: `<i class="fa-solid fa-train-subway" style="color: #e5a93c; font-size: 16px; text-shadow: 0px 0px 4px rgba(0,0,0,0.6);"></i>`,
+                                html: `<i class="fa-solid fa-train-subway" style="color: ${trainColor}; font-size: 16px; text-shadow: 0px 0px 4px rgba(0,0,0,0.6);"></i>`,
                                 iconSize: [16, 16],
                                 className: 'custom-train-icon'
                             });
@@ -288,9 +296,13 @@
                                     pane: 'trainPane' 
                                 }).addTo(map);
                             }
+                            
+                            // 鼠標懸停在火車上可以看到目的地
+                            trainMarkers[t.id].bindTooltip(`往 ${ST_NAMES[t.dest] || t.dest}`, { direction: 'right' });
                         }
                     });
 
+                    // 清除已經消失的列車
                     for (let id in trainMarkers) {
                         if (!activeIds.has(id)) {
                             map.removeLayer(trainMarkers[id]);
