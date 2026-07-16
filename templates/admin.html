@@ -280,7 +280,7 @@
             }
         }
 
-        function updateDashboard() {
+                function updateDashboard() {
             fetch('/api/admin/dashboard?line=TWL')
                 .then(r => r.json())
                 .then(data => {
@@ -288,6 +288,7 @@
                     document.getElementById("val-down").innerText = data.down_running;
                     document.getElementById("val-peak").innerText = data.peak_use_today;
 
+                    // 先清空所有格子的火車
                     document.querySelectorAll(".train-col").forEach(td => td.innerHTML = "");
 
                     data.active_trains.forEach(t => {
@@ -298,21 +299,27 @@
 
                         let targetTdId = "";
 
-                        if (status === "stopped_at_station") {
+                        // 🎯 修正核心：更寬鬆的判斷。如果是停站，或者進行已經快到了(>0.8)，算作在車站內
+                        if (status === "stopped_at_station" || t.ratio >= 0.8) {
                             targetTdId = `td-st-${to}-${dir}`;
                         } else {
+                            // 否則，一律算在站與站之間的「區間」
                             let element = document.getElementById(`td-int-${from}_${to}-${dir}`);
                             if (!element) {
                                 element = document.getElementById(`td-int-${to}_${from}-${dir}`);
                             }
                             if (element) {
                                 targetTdId = element.id;
+                            } else {
+                                // 備用安全網：如果找不到區間，先放在起點站格子內
+                                targetTdId = `td-st-${from}-${dir}`;
                             }
                         }
 
                         if (targetTdId) {
                             const cell = document.getElementById(targetTdId);
                             if (cell) {
+                                // 構建帶有目的地提示的火車圖標
                                 cell.innerHTML = `<div class="mtr-train-icon" title="往 ${t.dest}"></div>`;
                             }
                         }
@@ -320,6 +327,7 @@
                 })
                 .catch(err => console.error("抓取後台數據失敗:", err));
         }
+
 
         buildTableStructure();
         updateDashboard();
