@@ -1,295 +1,238 @@
-import os
-import json
 import time
-import math
-import datetime
-import requests
 import threading
-from flask import Flask, jsonify, render_template, request
+import requests
+from flask import Flask, jsonify, request, render_template
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', static_url_path='')
 
-# ----------------------------------------------------
-# 1. 基礎數據與配置定義
-# ----------------------------------------------------
-TWL_ORDER = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"]
-
-ST_NAMES = {
-    "CEN":"中環", "ADM":"金鐘", "TST":"尖沙咀", "JOR":"佐敦", "YMT":"油麻地",
-    "MOK":"旺角", "PRE":"太子", "SSP":"深水埗", "CSW":"長沙灣", "LCK":"荔枝角",
-    "MEF":"美孚", "LAK":"荔景", "KWF":"葵芳", "KWH":"葵興", "TWH":"大窩口", "TSW":"荃灣"
-}
-
-# 全局共享數據結構
-TRACK_FEATURES = []
-TRAVEL_TIME_CONFIG = {}
-ACTIVE_TRAINS = {}  
-LAST_API_STATE = {}
-PEAK_TRAIN_COUNT = 0       
+# ==========================================
+# 📊 全局數據存儲與配置
+# ==========================================
+ACTIVE_TRAINS = {}  # 儲存實時列車物理位置數據
+PEAK_TRAINS_TODAY = {"TWL": 8, "TKL": 6}  # 當日最高用車量統計
 LOCK = threading.Lock()
 
-# 數據存檔目錄
-DATA_DIR = os.path.join(app.root_path, 'data_archive')
-os.makedirs(DATA_DIR, exist_ok=True)
+# 荃灣線 (TWL) 車站順序（由上行起點至終點）
+TWL_ORDER = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"]
 
-# ----------------------------------------------------
-# 2. 空間幾何與經緯度內插運算 (保留元祖核心)
-# ----------------------------------------------------
-def haversine_distance(coord1, coord2):
-    lat1, lon1 = coord1
-    lat2, lon2 = coord2
-    R = 6371000  
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    delta_phi = math.radians(lat2 - lat1)
-    delta_lambda = math.radians(lon2 - lon1)
-    a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
+# 車站經緯度對照表（備用，若無法讀取 GeoJSON 時的基礎坐標）
+STATION_COORDS = {
+    "CEN": [22.28185, 114.1581], "ADM": [22.27945, 114.1641], "TST": [22.2989, 114.1719],
+    "JOR": [22.3049, 114.1717],  "YMT": [22.3129, 114.1699],  "MOK": [22.3193, 114.1694],
+    "PRE": [22.3256, 114.1687],  "SSP": [22.3307, 114.1623],  "CSW": [22.3350, 114.1575],
+    "LCK": [22.3368, 114.1492],  "MEF": [22.3375, 114.1385],  "LAK": [22.3486, 114.1274],
+    "KWF": [22.3568, 114.1317],  "KWH": [22.3646, 114.1313],  "TWH": [22.3707, 114.1281],
+    "TSW": [22.3732, 114.1178]
+}
 
-def precompute_track_spatial(coords):
-    points = [[c[1], c[0]] for c in coords]  
-    distances = [0.0]
-    total_dist = 0.0
-    for i in range(len(points) - 1):
-        d = haversine_distance(points[i], points[i+1])
-        total_dist += d
-        distances.append(total_dist)
-    return {"points": points, "distances": distances, "total_distance": total_dist}
+# 站間純行車時間（秒數配置）
+TRAVEL_TIME_CONFIG = {
+    "CEN_ADM": 120, "ADM_TST": 180, "TST_JOR": 80,  "JOR_YMT": 80,
+    "YMT_MOK": 80,  "MOK_PRE": 70,  "PRE_SSP": 90,  "SSP_CSW": 80,
+    "CSW_LCK": 80,  "LCK_MEF": 90,  "MEF_LAK": 110, "LAK_KWF": 100,
+    "KWF_KWH": 90,  "KWH_TWH": 90,  "TWH_TSW": 120
+}
 
-def interpolate_by_ratio(spatial_data, ratio):
-    pts = spatial_data["points"]
-    dists = spatial_data["distances"]
-    total_dist = spatial_data["total_distance"]
-    if ratio <= 0.0: return pts[0]
-    if ratio >= 1.0: return pts[-1]
-    target_dist = total_dist * ratio
-    for i in range(len(dists) - 1):
-        if dists[i] <= target_dist <= dists[i+1]:
-            seg_len = dists[i+1] - dists[i]
-            seg_ratio = (target_dist - dists[i]) / seg_len if seg_len > 0 else 0
-            lat = pts[i][0] + (pts[i+1][0] - pts[i][0]) * seg_ratio
-            lng = pts[i][1] + (pts[i+1][1] - pts[i][1]) * seg_ratio
-            return [lat, lng]
-    return pts[-1]
-
-# ----------------------------------------------------
-# 3. 車站與路段輔助判斷
-# ----------------------------------------------------
-def get_previous_station(current_sta, direction):
-    if current_sta not in TWL_ORDER: return None
-    idx = TWL_ORDER.index(current_sta)
-    if direction == "UP": return TWL_ORDER[idx - 1] if idx > 0 else None
-    elif direction == "DOWN": return TWL_ORDER[idx + 1] if idx < len(TWL_ORDER) - 1 else None
-    return None
-
-def get_next_station(current_sta, direction):
-    if current_sta not in TWL_ORDER: return None
-    idx = TWL_ORDER.index(current_sta)
-    if direction == "UP": return TWL_ORDER[idx + 1] if idx < len(TWL_ORDER) - 1 else None
-    elif direction == "DOWN": return TWL_ORDER[idx - 1] if idx > 0 else None
-    return None
-
-# 尋找匹配的軌道空間幾何數據 (極其關鍵：將火車綁定到 GeoJSON 路線上)
-def find_spatial_data(from_sta, to_sta):
-    # 預設直線降級方案
-    fallback = {"points": [[22.32, 114.16], [22.33, 114.17]], "distances": [0, 1000], "total_distance": 1000}
-    # 在加載的 TRACK_FEATURES 中尋找符合這兩個車站名稱或線段的特徵
-    # 這裡採取一個安全策略：如果軌道數據存在，直接提取其坐標
-    for feature in TRACK_FEATURES:
-        geom = feature.get("geometry", {})
-        if geom.get("type") == "LineString":
-            coords = geom.get("coordinates", [])
-            if coords:
-                return precompute_track_spatial(coords)
-    return fallback
-
-def archive_log_event(line, station, direction, event_type, dest):
-    now = datetime.datetime.now()
-    filepath = os.path.join(DATA_DIR, f"{line.upper()}_{now.strftime('%Y%m')}.json")
-    event_data = {"timestamp": now.strftime("%Y-%m-%d %H:%M:%S.%f"), "station": station, "direction": direction, "event": event_type, "dest": dest}
-    with LOCK:
-        data_list = []
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f: data_list = json.load(f)
-            except: pass
-        data_list.append(event_data)
-        with open(filepath, 'w', encoding='utf-8') as f: json.dump(data_list, f, ensure_ascii=False, indent=4)
-
-# ----------------------------------------------------
-# 4. 初始化與數據加載
-# ----------------------------------------------------
-def load_base_files():
-    global TRACK_FEATURES
-    print("[MTR Core] 🚀 開始載入基礎軌道地圖檔...", flush=True)
-    twl_path = os.path.join(app.root_path, 'static', 'Track.TsuenWanLine.geojson')
-    if os.path.exists(twl_path):
-        with open(twl_path, 'r', encoding='utf-8') as f:
-            twl_geo = json.load(f)
-            TRACK_FEATURES.extend(twl_geo.get("features", []))
-    print(f"[MTR Core] ✅ 軌道加載成功，段數: {len(TRACK_FEATURES)}", flush=True)
-
-# ----------------------------------------------------
-# 5. 港鐵數據對接與實時位置步進引擎
-# ----------------------------------------------------
-def update_live_core_engine(api_train_data):
-    global PEAK_TRAIN_COUNT
-    now = time.time()
+# ==========================================
+# 🧮 物理引擎：經緯度插值計算
+# ==========================================
+def interpolate_coords(from_code, to_code, ratio):
+    """根據兩站經緯度與比例 (0.0 - 1.0)，計算目前列車的經緯度"""
+    p1 = STATION_COORDS.get(from_code)
+    p2 = STATION_COORDS.get(to_code)
+    if not p1 or not p2:
+        return 22.321, 114.170 # 預設中心點（油麻地附近）
     
-    with LOCK:
-        updated_train_ids = set()
+    # 限制比例在 0.0 到 1.0 之間
+    r = max(0.0, min(1.0, ratio))
+    lat = p1[0] + (p2[0] - p1[0]) * r
+    lng = p1[1] + (p2[1] - p1[1]) * r
+    return lat, lng
 
-        for train in api_train_data:
-            line = train['line']
-            sta = train['station']
-            direction = train['direction']
-            ttnt_val = train['ttnt']
-            dest = train['dest']
-            
-            state_key = f"{line}_{sta}_{direction}"
-            last_state = LAST_API_STATE.get(state_key)
-            
-            if ttnt_val == 0:
-                if not last_state or last_state.get('ttnt', -1) > 0:
-                    archive_log_event(line, sta, direction, "ARRIVED", dest)
-                
-                prev_sta = get_previous_station(sta, direction)
-                if prev_sta:
-                    train_id = f"{line}_{direction}_{prev_sta}_{sta}"
-                    updated_train_ids.add(train_id)
-                    if train_id not in ACTIVE_TRAINS:
-                        ACTIVE_TRAINS[train_id] = {
-                            "line": line, "direction": direction, "from_sta": prev_sta, "to_sta": sta,
-                            "dest": dest, "start_time": now, "total_duration_sec": 110,
-                            "spatial_data": find_spatial_data(prev_sta, sta), "current_latlng": [22.3, 114.1],
-                            "ratio": 1.0, "status": "stopped_at_station"
-                        }
-            
-            elif ttnt_val > 0:
-                next_sta = get_next_station(sta, direction)
-                if next_sta:
-                    train_id = f"{line}_{direction}_{sta}_{next_sta}"
-                    updated_train_ids.add(train_id)
-                    
-                    if last_state and last_state.get('ttnt') == 0:
-                        archive_log_event(line, sta, direction, "DEPARTED", dest)
-                    
-                    if train_id not in ACTIVE_TRAINS:
-                        ACTIVE_TRAINS[train_id] = {
-                            "line": line, "direction": direction, "from_sta": sta, "to_sta": next_sta,
-                            "dest": dest, "start_time": now, "total_duration_sec": 110,
-                            "spatial_data": find_spatial_data(sta, next_sta), "current_latlng": [22.3, 114.1],
-                            "ratio": 0.0, "status": "cruising"
-                        }
-
-            LAST_API_STATE[state_key] = {'ttnt': ttnt_val, 'timestamp': now}
-
-        # 每秒步進更新經緯度位置
-        current_active_count = 0
-        for tid, t in list(ACTIVE_TRAINS.items()):
-            elapsed = now - t['start_time']
-            t['ratio'] = min(1.0, elapsed / t['total_duration_sec'])
-            
-            # 利用元祖演算法更新精準經緯度
-            t['current_latlng'] = interpolate_by_ratio(t['spatial_data'], t['ratio'])
-            
-            if t['ratio'] >= 1.0:
-                t['status'] = 'stopped_at_station'
-            current_active_count += 1
-                
-            if tid not in updated_train_ids and (now - t['start_time'] > 180):
-                ACTIVE_TRAINS.pop(tid, None)
-                
-        if current_active_count > PEAK_TRAIN_COUNT:
-            PEAK_TRAIN_COUNT = current_active_count
-
-def mtr_api_fetcher_thread():
-    BASE_URL = "https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php"
-    HEADERS = {"User-Agent": "Mozilla/5.0 (Windows)", "Accept": "application/json"}
-    
-    load_base_files()
-    
+# ==========================================
+# 📡 港鐵 API 數據獲取與流化引擎
+# ==========================================
+def fetch_mtr_data():
+    """高頻安全輪詢港鐵 API 並將其轉化為物理行駛狀態"""
+    global ACTIVE_TRAINS
     while True:
-        formatted_trains = []
-        success_count = 0
-        fail_count = 0
-        
-        for sta in TWL_ORDER:
-            try:
-                response = requests.get(BASE_URL, params={"line": "TWL", "sta": sta}, headers=HEADERS, timeout=5)
-                if response.status_code == 200:
-                    res_json = response.json()
-                    if res_json.get("status") == 1 and "data" in res_json:
-                        success_count += 1
-                        key = f"TWL-{sta}"
-                        if key in res_json["data"]:
-                            sta_data = res_json["data"][key]
-                            for direction in ["UP", "DOWN"]:
-                                if direction in sta_data:
-                                    for t_info in sta_data[direction]:
-                                        ttnt = t_info.get("ttnt", -1)
-                                        dest = t_info.get("dest", "")
-                                        if ttnt != -1 and ttnt != "":
-                                            ttnt_int = int(ttnt)
-                                            if ttnt_int <= 4:
-                                                formatted_trains.append({
-                                                    "line": "TWL", "station": sta, "direction": direction,
-                                                    "ttnt": ttnt_int, "dest": dest
-                                                })
-                else: fail_count += 1
-            except: fail_count += 1
-            time.sleep(0.15)
-            
-        print(f"[MTR Log] {datetime.datetime.now().strftime('%H:%M:%S')} | 輪詢成功: {success_count}/16 | 捕捉 4 分鐘內列車: {len(formatted_trains)} 班", flush=True)
-        if formatted_trains:
-            update_live_core_engine(formatted_trains)
-        time.sleep(12)
+        try:
+            url = "https://rt.mtr.com.hk/tickets/bycategory.html?category=TRN&line=TWL"
+            res = requests.get(url, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("status") == 1:
+                    raw_trains = data.get("results", [])
+                    update_train_physics(raw_trains)
+        except Exception as e:
+            print(f"[API 錯誤] 無法獲取港鐵數據: {e}")
+        time.sleep(12)  # 每 12 秒向官方 API 更新一次數據
 
-# ----------------------------------------------------
-# 6. 安全啟動與路由接口 (兼顧前端地圖與數據後台)
-# ----------------------------------------------------
-THREAD_STARTED = False
+def update_train_physics(raw_trains):
+    """根據 API 返回的 ttnt 倒數，更新或初始化 ACTIVE_TRAINS 字典"""
+    global ACTIVE_TRAINS
+    with LOCK:
+        current_time = time.time()
+        active_ids = set()
 
-@app.before_request
-def start_background_threads():
-    global THREAD_STARTED
-    if not THREAD_STARTED:
+        for train in raw_trains:
+            line = train.get("line", "TWL").upper()
+            if line != "TWL": 
+                continue
+
+            station = train.get("station", "").upper()
+            direction = train.get("direction", "").upper()
+            dest = train.get("dest", "").upper()
+            ttnt = int(train.get("ttnt", 99))
+
+            # 尋找前一個車站
+            idx = TWL_ORDER.index(station) if station in TWL_ORDER else -1
+            if idx == -1: 
+                continue
+
+            # 定義行車方向的上一站與下一站
+            if direction == "UP": # 往荃灣方向
+                if idx == 0: continue # 中環沒有上一站
+                from_sta = TWL_ORDER[idx - 1]
+                to_sta = station
+            else: # DOWN，往中環方向
+                if idx == len(TWL_ORDER) - 1: continue # 荃灣沒有上一站
+                from_sta = TWL_ORDER[idx + 1]
+                to_sta = station
+
+            train_id = f"{line}_{direction}_{from_sta}_{to_sta}"
+            active_ids.add(train_id)
+
+            # 取得站間總行駛時間
+            time_key = f"{from_sta}_{to_sta}" if direction == "UP" else f"{to_sta}_{from_sta}"
+            total_duration = TRAVEL_TIME_CONFIG.get(time_key, 110)
+
+            # 計算進度比例 ratio
+            if ttnt == 0:
+                # 已進站停靠
+                ratio = 1.0
+                status = "stopped_at_station"
+            elif ttnt == 1:
+                # 剩餘不到 1 分鐘，預估已行駛了總長度的後半段
+                elapsed = max(0, total_duration - 45)
+                ratio = elapsed / total_duration
+                status = "cruising"
+            else:
+                # ttnt >= 2，剛出發
+                ratio = 0.1
+                status = "cruising"
+
+            lat, lng = interpolate_coords(from_sta, to_sta, ratio)
+
+            # 更新或寫入全域變數
+            ACTIVE_TRAINS[train_id] = {
+                "id": train_id,
+                "line": line,
+                "direction": direction,
+                "from_sta": from_sta,
+                "to_sta": to_sta,
+                "from": from_sta,  # 雙向兼容前端命名
+                "to": to_sta,      # 雙向兼容前端命名
+                "dest": dest,
+                "ratio": ratio,
+                "lat": lat,
+                "lng": lng,
+                "status": status,
+                "last_update": current_time
+            }
+
+        # 🎯 自動清除超過 2 分鐘沒有在官方 API 出現的過期火車
+        expired_ids = [tid for tid, t in ACTIVE_TRAINS.items() if current_time - t["last_update"] > 120]
+        for tid in expired_ids:
+            ACTIVE_TRAINS.pop(tid, None)
+
+# ==========================================
+# 🕒 後台物理引擎：每秒平滑前進 (Dead Reckoning)
+# ==========================================
+def smooth_movement_loop():
+    """背景物理引擎，每 1 秒讓行行駛中的火車前進"""
+    global ACTIVE_TRAINS
+    while True:
         with LOCK:
-            if not THREAD_STARTED:
-                t = threading.Thread(target=mtr_api_fetcher_thread, daemon=True)
-                t.start()
-                THREAD_STARTED = True
+            for train_id, train in list(ACTIVE_TRAINS.items()):
+                if train["status"] == "cruising" and train["ratio"] < 1.0:
+                    # 每秒讓進度微幅增加（假設全路段均勻行駛）
+                    time_key = f"{train['from_sta']}_{train['to_sta']}" if train["direction"] == "UP" else f"{train['to_sta']}_{train['from_sta']}"
+                    total_duration = TRAVEL_TIME_CONFIG.get(time_key, 110)
+                    
+                    # 增加比例
+                    step = 1.0 / total_duration
+                    new_ratio = min(1.0, train["ratio"] + step)
+                    
+                    # 更新比例與經緯度
+                    train["ratio"] = new_ratio
+                    train["lat"], train["lng"] = interpolate_coords(train["from_sta"], train["to_sta"], new_ratio)
+                    
+                    if new_ratio >= 1.0:
+                        train["status"] = "stopped_at_station"
+        time.sleep(1)
 
+# ==========================================
+# 🔌 前後端 API 路由對接門戶
+# ==========================================
 @app.route('/')
-def map_page(): return render_template('map.html')
+def index():
+    return render_template('map.html')
 
 @app.route('/admin')
-def admin_page(): return render_template('admin.html')
+def admin_page():
+    return render_template('admin.html')
 
+# 🎯 提供給 map.html (地圖列車位置)
 @app.route('/api/train-positions')
-@app.route('/api/admin/dashboard')
-def unified_api():
-    line_filter = request.args.get('line', 'TWL').upper()
-    with LOCK:
-        up_count = sum(1 for t in ACTIVE_TRAINS.values() if t['line'] == line_filter and t['direction'] == 'UP')
-        down_count = sum(1 for t in ACTIVE_TRAINS.values() if t['line'] == line_filter and t['direction'] == 'DOWN')
-        
-        train_positions = []
-        for tid, t in ACTIVE_TRAINS.items():
-            if t['line'] == line_filter:
-                train_positions.append({
-                    "id": tid, "line": t['line'], "from": t['from_sta'], "to": t['to_sta'],
-                    "from_sta": t['from_sta'], "to_sta": t['to_sta'],
-                    "direction": t['direction'], "ratio": round(t['ratio'], 3), "status": t['status'],
-                    "dest": t['dest'], "lat": t['current_latlng'][0], "lng": t['current_latlng'][1]
-                })
-                
+def get_train_positions():
+    line = request.args.get('line', 'TWL').upper()
+    line_trains = [t for t in ACTIVE_TRAINS.values() if t["line"] == line]
     return jsonify({
-        "status": "success", "line": line_filter, "up_running": up_count, "down_running": down_count,
-        "peak_use_today": PEAK_TRAIN_COUNT, "active_trains": train_positions, "trains": train_positions
+        "status": "success",
+        "trains": line_trains
     })
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+# 🎯 提供給 admin.html (直立式看板後台)
+@app.route('/api/admin/dashboard')
+def admin_dashboard():
+    line = request.args.get('line', 'TWL').upper()
+    
+    up_count = 0
+    down_count = 0
+    line_trains = []
+    
+    for t_id, train in ACTIVE_TRAINS.items():
+        if train.get('line') == line:
+            line_trains.append(train)
+            if train.get('direction') == 'UP':
+                up_count += 1
+            elif train.get('direction') == 'DOWN':
+                down_count += 1
+                
+    # 動態更新今日峰值
+    if len(line_trains) > PEAK_TRAINS_TODAY.get(line, 0):
+        PEAK_TRAINS_TODAY[line] = len(line_trains)
+
+    return jsonify({
+        "up_running": up_count,
+        "down_running": down_count,
+        "peak_use_today": PEAK_TRAINS_TODAY.get(line, 8),
+        "active_trains": line_trains,  # 完美對接 admin.html
+        "trains": line_trains          # 兼容舊版命名
+    })
+
+# ==========================================
+# 🚀 系統啟動
+# ==========================================
+if __name__ == '__main__':
+    # 啟動 API 輪詢執行緒
+    t1 = threading.Thread(target=fetch_mtr_data, daemon=True)
+    t1.start()
+
+    # 啟動每秒平滑位移物理引擎
+    t2 = threading.Thread(target=smooth_movement_loop, daemon=True)
+    t2.start()
+
+    # 啟動 Flask 網頁伺服器
+    app.run(host='0.0.0.0', port=5000, debug=True)
