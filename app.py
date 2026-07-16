@@ -204,15 +204,18 @@ def mtr_api_fetcher_thread():
                                         ttnt = t_info.get("ttnt", -1)
                                         dest = t_info.get("dest", "")
                                         
-                                        # 有班次且數值健全時送入物理引擎
-                                        if ttnt != -1 and ttnt != "":
-                                            formatted_trains.append({
-                                                "line": "TWL",
-                                                "station": sta,
-                                                "direction": direction,
-                                                "ttnt": int(ttnt),
-                                                "dest": dest
-                                            })
+                                        # 🎯 優化過濾條件：只捕捉 4 分鐘內即將到站的實時列車，防止遠期車次污染物理引擎
+if ttnt != -1 and ttnt != "":
+    ttnt_int = int(ttnt)
+    if ttnt_int <= 4:  # 🌟 關鍵：只留 4 分鐘內的車次
+        formatted_trains.append({
+            "line": "TWL",
+            "station": sta,
+            "direction": direction,
+            "ttnt": ttnt_int,
+            "dest": dest
+        })
+
                     else:
                         fail_count += 1
                         last_error_msg = f"API 業務報錯 (status={res_json.get('status')})"
