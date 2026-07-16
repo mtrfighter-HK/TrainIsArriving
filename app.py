@@ -158,7 +158,7 @@ def update_live_core_engine(api_train_data):
                 if prev_sta:
                     train_id = f"{line}_{direction}_{prev_sta}_{sta}"
                     updated_train_ids.add(train_id)
-                    if train_id taxpayers not in ACTIVE_TRAINS:
+                    if train_id not in ACTIVE_TRAINS:
                         ACTIVE_TRAINS[train_id] = {
                             "line": line, "direction": direction, "from_sta": prev_sta, "to_sta": sta,
                             "dest": dest, "start_time": now, "total_duration_sec": 110,
