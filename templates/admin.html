@@ -218,120 +218,198 @@
         </table>
 
     </div>
-
     <script>
-        const TWL_STATIONS_ORDER = [
-            { code: "TSW", name: "荃灣" },
-            { code: "TWH", name: "大窩口" },
-            { code: "KWH", name: "葵興" },
-            { code: "KWF", name: "葵芳" },
-            { code: "LAK", name: "荔景" },
-            { code: "MEF", name: "美孚" },
-            { code: "LCK", name: "荔枝角" },
-            { code: "CSW", name: "長沙灣" },
-            { code: "SSP", name: "深水埗" },
-            { code: "PRE", name: "太子" },
-            { code: "MOK", name: "旺角" },
-            { code: "YMT", name: "油麻地" },
-            { code: "JOR", name: "佐敦" },
-            { code: "TST", name: "尖沙咀" },
-            { code: "ADM", name: "金鐘" },
-            { code: "CEN", name: "中環" }
-        ];
+        let currentLine = 'TWL';
+        const STATIONS_DICT = {
+            'TWL': [
+                {code: 'TSW', name: '荃灣'}, {code: 'TWH', name: '大窩口'}, {code: 'KWH', name: '葵興'},
+                {code: 'KWF', name: '葵芳'}, {code: 'LAK', name: '荔景'}, {code: 'MEF', name: '美孚'},
+                {code: 'LCK', name: '荔枝角'}, {code: 'CSW', name: '長沙灣'}, {code: 'SSP', name: '深水埗'},
+                {code: 'PRE', name: '太子'}, {code: 'MOK', name: '旺角'}, {code: 'YMT', name: '油麻地'},
+                {code: 'JOR', name: '佐敦'}, {code: 'TST', name: '尖沙咀'}, {code: 'ADM', name: '金鐘'},
+                {code: 'CEN', name: '中環'}
+            ],
+            'TKL': [
+                {code: 'POA', name: '寶琳'}, {code: 'HAH', name: '坑口'}, {code: 'TKO', name: '將軍澳'},
+                {code: 'LHP', name: '康城'}, {code: 'TIK', name: '調景嶺'}, {code: 'YAT', name: '油塘'},
+                {code: 'QUB', name: '鰂魚涌'}, {code: 'NOP', name: '北角'}
+            ]
+        };
 
-        function buildTableStructure() {
-            const tbody = document.getElementById("monitor-body");
-            tbody.innerHTML = "";
+        const ST_NAMES_ZH = {
+            "CEN":"中環", "ADM":"金鐘", "TST":"尖沙咀", "JOR":"佐敦", "YMT":"油麻地",
+            "MOK":"旺角", "PRE":"太子", "SSP":"深水埗", "CSW":"長沙灣", "LCK":"荔枝角",
+            "MEF":"美孚", "LAK":"荔景", "KWF":"葵芳", "KWH":"葵興", "TWH":"大窩口", "TSW":"荃灣"
+        };
 
-            for (let i = 0; i < TWL_STATIONS_ORDER.length; i++) {
-                const st = TWL_STATIONS_ORDER[i];
+        // 初始化與切換路線
+        function switchLine(lineCode, element) {
+            currentLine = lineCode;
+            
+            // 更新選單外觀
+            document.querySelectorAll('.folder-item').forEach(item => {
+                item.classList.remove('active');
+                item.querySelector('i').className = 'fa-solid fa-folder';
+            });
+            element.classList.add('active');
+            element.querySelector('i').className = 'fa-solid fa-folder-open';
 
-                const trStation = document.createElement("tr");
-                trStation.className = "row-station";
-                trStation.id = `row-st-${st.code}`;
-                trStation.innerHTML = `
-                    <td>
-                        <div class="station-info">
-                            <span class="station-name">${st.name}</span>
-                            <span class="station-code">${st.code}</span>
-                        </div>
-                    </td>
-                    <td class="train-col" id="td-st-${st.code}-UP"></td>
-                    <td class="train-col" id="td-st-${st.code}-DOWN"></td>
+            // 修改變數顏色主題
+            const root = document.documentElement;
+            root.style.setProperty('--twl-color', lineCode === 'TWL' ? '#E2231A' : '#7A2682');
+            
+            document.getElementById('current-line-title').innerHTML = `<i class="fa-solid fa-chart-line"></i> ${lineCode === 'TWL' ? '荃灣線' : '將軍澳線'}實時調度狀態`;
+
+            // 更新篩選器中的車站清單
+            const stationSelect = document.getElementById('filter-station');
+            stationSelect.innerHTML = '<option value="ALL">所有車站 (ALL)</option>';
+            STATIONS_DICT[lineCode].forEach(st => {
+                stationSelect.innerHTML += `<option value="${st.code}">${st.name} (${st.code})</option>`;
+            });
+
+            // 生成今日與過去幾天的日子篩選選項
+            const dateSelect = document.getElementById('filter-date');
+            dateSelect.innerHTML = '<option value="ALL">任何日子 (ALL)</option>';
+            for(let i=0; i<7; i++) {
+                let d = new Date(); d.setDate(d.getDate() - i);
+                let dateStr = d.toISOString().split('T')[0];
+                dateSelect.innerHTML += `<option value="${dateStr}">${dateStr}</option>`;
+            }
+
+            renderEmptyKanban();
+            updateDashboardData();
+            loadLogs();
+        }
+
+        // 預先渲染乾淨的直立式看板外殼
+        function renderEmptyKanban() {
+            const tbody = document.getElementById('kanban-body');
+            tbody.innerHTML = '';
+            const list = STATIONS_DICT[currentLine];
+
+            for (let i = 0; i < list.length; i++) {
+                // 車站行
+                tbody.innerHTML += `
+                    <tr class="kanban-row-station" id="row-sta-${list[i].code}">
+                        <td class="kanban-cell station-name">${list[i].name} <span class="station-code-slug">${list[i].code}</span></td>
+                        <td class="kanban-cell" id="cell-sta-${list[i].code}-UP"></td>
+                        <td class="kanban-cell" id="cell-sta-${list[i].code}-DOWN"></td>
+                    </tr>
                 `;
-                tbody.appendChild(trStation);
-
-                if (i < TWL_STATIONS_ORDER.length - 1) {
-                    const nextSt = TWL_STATIONS_ORDER[i + 1];
-                    const trInterval = document.createElement("tr");
-                    trInterval.className = "row-interval";
-                    
-                    trInterval.innerHTML = `
-                        <td>
-                            <div class="interval-text">
-                                <i class="fa-solid fa-arrows-up-down"></i> 站間區間
-                            </div>
-                        </td>
-                        <td class="train-col" id="td-int-${st.code}_${nextSt.code}-UP"></td>
-                        <td class="train-col" id="td-int-${st.code}_${nextSt.code}-DOWN"></td>
+                // 站間區間行
+                if (i < list.length - 1) {
+                    tbody.innerHTML += `
+                        <tr class="kanban-row-inter" id="row-inter-${list[i].code}-${list[i+1].code}">
+                            <td class="kanban-cell station-name" style="color:#bbb; font-weight:normal; font-size:12px; padding-left:25px;">↓ 站間區間</td>
+                            <td class="kanban-cell" id="cell-inter-${list[i].code}-${list[i+1].code}-UP"></td>
+                            <td class="kanban-cell" id="cell-inter-${list[i].code}-${list[i+1].code}-DOWN"></td>
+                        </tr>
                     `;
-                    tbody.appendChild(trInterval);
                 }
             }
         }
 
-                function updateDashboard() {
-            fetch('/api/admin/dashboard?line=TWL')
-                .then(r => r.json())
+        // 定時向後台獲取列車位置並擺放圖標
+        function updateDashboardData() {
+            fetch(`/api/admin/dashboard?line=${currentLine}`)
+                .then(res => res.json())
                 .then(data => {
-                    document.getElementById("val-up").innerText = data.up_running;
-                    document.getElementById("val-down").innerText = data.down_running;
-                    document.getElementById("val-peak").innerText = data.peak_use_today;
+                    document.getElementById('stat-up-count').innerText = data.up_running || 0;
+                    document.getElementById('stat-down-count').innerText = data.down_running || 0;
+                    document.getElementById('stat-peak-count').innerText = data.peak_use_today || 0;
 
-                    // 先清空所有格子的火車
-                    document.querySelectorAll(".train-col").forEach(td => td.innerHTML = "");
+                    // 清空看板上的舊車
+                    document.querySelectorAll('[id^="cell-sta-"], [id^="cell-inter-"]').forEach(c => c.innerHTML = '');
 
-                    data.active_trains.forEach(t => {
-                        const from = t.from;
-                        const to = t.to;
-                        const dir = t.direction;
-                        const status = t.status;
-
-                        let targetTdId = "";
-
-                        // 🎯 修正核心：更寬鬆的判斷。如果是停站，或者進行已經快到了(>0.8)，算作在車站內
-                        if (status === "stopped_at_station" || t.ratio >= 0.8) {
-                            targetTdId = `td-st-${to}-${dir}`;
+                    // 將火車塞入對應的位置
+                    var trains = data.active_trains || data.trains || [];
+                    trains.forEach(train => {
+                        const from_sta = String(train.from || train.from_sta).toUpperCase().trim();
+                        const to_sta = String(train.to || train.to_sta).toUpperCase().trim();
+                        const direction = String(train.direction).toUpperCase().trim();
+                        
+                        const destName = ST_NAMES_ZH[train.dest] || train.dest;
+                        const iconHtml = `<i class="fa-solid fa-train-subway train-icon" title="終點站: 往 ${destName} | 進度: ${Math.round(train.ratio*100)}%"></i>`;
+                        
+                        // 🎯 修正1：容錯判定。如果是進站，或者進度已到 85% 以上，直接算作進入 to 車站
+                        if (train.status === 'stopped_at_station' || train.ratio >= 0.85) {
+                            const cell = document.getElementById(`cell-sta-${to_sta}-${direction}`);
+                            if(cell) cell.innerHTML = iconHtml;
+                        } else if (train.ratio <= 0.15) {
+                            // 剛發車，還在起點站
+                            const cell = document.getElementById(`cell-sta-${from_sta}-${direction}`);
+                            if(cell) cell.innerHTML = iconHtml;
                         } else {
-                            // 否則，一律算在站與站之間的「區間」
-                            let element = document.getElementById(`td-int-${from}_${to}-${dir}`);
-                            if (!element) {
-                                element = document.getElementById(`td-int-${to}_${from}-${dir}`);
+                            // 🎯 修正2：消除下行站間 ID 鏡像配對盲區
+                            let cellId = `cell-inter-${from_sta}-${to_sta}-${direction}`;
+                            let cell = document.getElementById(cellId);
+                            if(!cell) {
+                                cellId = `cell-inter-${to_sta}-${from_sta}-${direction}`;
+                                cell = document.getElementById(cellId);
                             }
-                            if (element) {
-                                targetTdId = element.id;
-                            } else {
-                                // 備用安全網：如果找不到區間，先放在起點站格子內
-                                targetTdId = `td-st-${from}-${dir}`;
-                            }
-                        }
-
-                        if (targetTdId) {
-                            const cell = document.getElementById(targetTdId);
-                            if (cell) {
-                                // 構建帶有目的地提示的火車圖標
-                                cell.innerHTML = `<div class="mtr-train-icon" title="往 ${t.dest}"></div>`;
-                            }
+                            if(cell) cell.innerHTML = iconHtml;
                         }
                     });
-                })
-                .catch(err => console.error("抓取後台數據失敗:", err));
+                }).catch(err => console.error("後台看板數據更新失敗:", err));
         }
 
+        // 載入與過濾歷史日誌
+        function loadLogs() {
+            const sta = document.getElementById('filter-station').value;
+            const date = document.getElementById('filter-date').value;
+            const time = document.getElementById('filter-time').value;
 
-        buildTableStructure();
-        updateDashboard();
-        setInterval(updateDashboard, 1500);
+            // 後端日誌路由兼容安全性保護
+            fetch(`/api/admin/logs?line=${currentLine}&station=${sta}&date=${date}&time=${time}`)
+                .then(res => {
+                    if(!res.ok) return [];
+                    return res.json();
+                })
+                .then(logs => {
+                    const container = document.getElementById('log-list-container');
+                    container.innerHTML = '';
+                    
+                    if(!logs || logs.length === 0) {
+                        container.innerHTML = '<div style="text-align:center; color:#999; padding:20px; font-size:13px;">暫無符合條件的捕捉數據</div>';
+                        return;
+                    }
+
+                    logs.forEach(log => {
+                        const isArr = log.event === 'ARRIVED';
+                        const itemClass = isArr ? 'arrived' : 'departed';
+                        const eventText = isArr ? '列車進站中 (ttnt=0)' : '列車已開出 (發車)';
+                        const dirText = log.direction === 'UP' ? '↑ 上行' : '↓ 下行';
+                        const dirClass = log.direction === 'UP' ? 'up' : '';
+                        const stationName = ST_NAMES_ZH[log.station] || log.station;
+                        const destName = ST_NAMES_ZH[log.dest] || log.dest;
+
+                        container.innerHTML += `
+                            <div class="log-item ${itemClass}">
+                                <div class="log-main">
+                                    <div>
+                                        <span class="log-station-tag">${stationName}</span> 
+                                        <span style="margin-left:8px; color:${isArr?'green':'#1890ff'}; font-weight:bold;">${eventText}</span>
+                                    </div>
+                                    <div class="log-dest">終點站: 往 ${destName}</div>
+                                    <div class="log-time">${log.timestamp}</div>
+                                </div>
+                                <span class="log-dir-tag ${dirClass}">${dirText}</span>
+                            </div>
+                        `;
+                    });
+                }).catch(() => {
+                    // 靜默降級：若日誌存檔功能尚未啟用，不拋出報錯阻斷主程序
+                    document.getElementById('log-list-container').innerHTML = '<div style="text-align:center; color:#aaa; padding:20px; font-size:13px;">歷史數據日誌模組常駐監聽中...</div>';
+                });
+        }
+
+        // 進入頁面自動初始化
+        switchLine('TWL', document.querySelector('.folder-item'));
+        
+        // 建立常駐定時器
+        setInterval(updateDashboardData, 1000); // 與雲端引擎步進同步，調高至每 1 秒精準刷新看板車位
+        setInterval(loadLogs, 10000);            // 每 10 秒更新一次日誌
     </script>
+
 </body>
 </html>
