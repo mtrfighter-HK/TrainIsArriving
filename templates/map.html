@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <div class="title">🗺️ 港鐵實時地圖 - 荃灣綫</div>
+    <div class="title">🗺️ 港鐵實時地圖 - 荃灣綫 [Debug]</div>
     <a href="/admin" class="data-btn">📊 數據後台</a>
     <div id="map"></div>
 
@@ -30,7 +30,6 @@
             .then(r => r.json())
             .then(data => {
                 L.geoJSON(data, { style: { color: "#ed1d24", weight: 5, opacity: 0.75 } }).addTo(map);
-
                 data.features.forEach(f => {
                     if (f.geometry.type === "LineString") {
                         trackCoords = trackCoords.concat(f.geometry.coordinates);
@@ -56,11 +55,12 @@
                 }).addTo(map);
             });
 
-        // 接入 API + 移動
+        // Debug 版 API 對接
         async function updateLiveTrains() {
             try {
                 const res = await fetch('/api/live');
                 const trains = await res.json();
+                console.log("API 返回:", trains);   // F12 Console 看這裡
 
                 Object.values(trainMarkers).forEach(m => map.removeLayer(m));
                 trainMarkers = {};
@@ -89,7 +89,7 @@
                     }
                 });
             } catch (e) {
-                console.error("API 更新失敗", e);
+                console.error("API 失敗", e);
             }
         }
 
