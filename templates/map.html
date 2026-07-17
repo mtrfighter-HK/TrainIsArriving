@@ -26,7 +26,7 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         // 軌道 - 新 repo 結構
-        fetch('/static/Track.TsuenWanLine.geojson')
+        fetch('/static/路線軌道檔/Track.TsuenWanLine.geojson')
             .then(r => r.json())
             .then(data => {
                 L.geoJSON(data, { style: { color: "#ed1d24", weight: 5, opacity: 0.75 } }).addTo(map);
@@ -39,7 +39,7 @@
             });
 
         // 車站 - 新 repo 結構
-        fetch('/static/StationLocation_2026_06.geojson')
+        fetch('/static/系統基本檔/StationLocation_2026_06.geojson')
             .then(r => r.json())
             .then(data => {
                 L.geoJSON(data, {
@@ -56,7 +56,7 @@
                 }).addTo(map);
             });
 
-        // 接入 API + 移動
+        // 接入 API + 紅點移動
         async function updateLiveTrains() {
             try {
                 const res = await fetch('/api/live');
@@ -89,7 +89,7 @@
                     }
                 });
             } catch (e) {
-                console.error("API 更新失敗", e);
+                console.error("更新列車失敗", e);
             }
         }
 
