@@ -2,222 +2,176 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>MTR 列車實時位置顯示系統 - 數據後台</title>
+    <title>MTR 列車調度與雲端數據後台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { 
-            margin: 0; 
-            padding: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: #12131a; 
-            color: #e2e8f0; 
+        :root {
+            --twl-color: #E2231A;
+            --tkl-color: #7A2682;
+            --bg-color: #f5f7fb;
+            --card-bg: #ffffff;
+            --text-main: #333333;
         }
 
-        /* 🎯 統一導航欄黃金 CSS (與 map.html 完完全全一模一樣) */
-        header { 
-            background: #1e222b; 
-            color: #fff;
-            padding: 0 20px; 
-            height: 56px; /* 強制固定高度 */
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            border-bottom: 3px solid #E2231A; 
-            z-index: 1000; 
-            position: relative;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            box-sizing: border-box;
+        body {
+            margin: 0; padding: 0; font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main); display: flex; height: 100vh;
         }
-        .nav-title { 
-            font-size: 16px; 
-            font-weight: bold; 
-            display: flex; 
-            align-items: center; 
-            gap: 8px;
-            white-space: nowrap; /* 防止換行 */
-            overflow: hidden;
-            text-overflow: ellipsis; /* 螢幕過窄時自動縮略 */
-            margin-right: 15px;
-        }
-        .btn-nav { 
-            background: #E2231A; 
-            color: white; 
-            text-decoration: none; 
-            padding: 0 14px; 
-            height: 34px; /* 按鈕高度固定 */
-            border-radius: 4px; 
-            font-size: 13px; 
-            font-weight: bold;
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            white-space: nowrap;
-            box-sizing: border-box;
-        }
-        .btn-nav:hover { background: #b91c1c; }
 
-        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+        /* 📁 左側文件夾式導覽列 */
+        .sidebar {
+            width: 260px; background-color: #1e222b; color: #ffffff;
+            display: flex; flex-direction: column; box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        .sidebar-header {
+            padding: 20px; font-size: 16px; font-weight: bold; background: #15181f;
+            border-bottom: 1px solid #2a2f3b; display: flex; align-items: center; gap: 10px;
+        }
+        .folder-menu { padding: 15px 0; list-style: none; margin: 0; flex: 1; }
+        .folder-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s; color: #b8c0cc; }
+        .folder-item:hover { background: #2a2f3b; color: #fff; }
+        .folder-item.active { background: #2a2f3b; color: #fff; border-left: 4px solid var(--twl-color); }
+        .folder-item i.fa-folder-open { color: #ffca28; }
 
-        .stats-card {
-            background: #1e222b;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #2d3139;
-        }
-        .stats-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #fff;
-            border-left: 4px solid #E2231A;
-            padding-left: 10px;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        .stat-box {
-            background: #15181f;
-            border-radius: 6px;
-            padding: 12px 5px;
-            text-align: center;
-            border: 1px solid #2a2e37;
-        }
-        .stat-label { font-size: 11px; color: #a0aec0; margin-bottom: 6px; line-height: 1.3; }
-        .stat-value { font-size: 20px; font-weight: bold; color: #f59e0b; }
-
-        .monitor-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #1e222b;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid #2d3139;
-            margin-bottom: 40px;
-        }
+        /* 📊 右側主儀表板 */
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .header-title { font-size: 22px; font-weight: bold; margin: 0; display: flex; align-items: center; gap: 10px; }
         
-        .row-station {
-            background: #1e222b;
-            border-bottom: 1px solid #2a2e37;
-        }
-        .row-interval {
-            background: #171a21;
-            border-bottom: 1px solid #2a2e37;
-        }
+        /* 📈 小統計表區塊 */
+        .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+        .stat-card { background: var(--card-bg); padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; }
+        .stat-info .stat-label { font-size: 13px; color: #888; margin-bottom: 5px; }
+        .stat-info .stat-value { font-size: 24px; font-weight: bold; }
+        .stat-icon { font-size: 28px; opacity: 0.2; }
 
-        .monitor-table td {
-            padding: 10px 15px;
-            vertical-align: middle;
-        }
+        /* 🏢 雙欄佈局：左看板，右日誌 */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; align-items: start; }
+        @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
 
-        .station-info {
-            display: flex;
-            align-items: baseline;
-            gap: 6px;
-        }
-        .station-name {
-            font-size: 15px;
-            font-weight: bold;
-            color: #ffffff;
-        }
-        .station-code {
-            font-size: 11px;
-            color: #718096;
-            font-weight: 500;
-        }
+        .card { background: var(--card-bg); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 20px; }
+        .card-title { font-size: 16px; font-weight: bold; margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
 
-        .interval-text {
-            font-size: 12px;
-            color: #4a5568;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        /* 🚆 簡易列車位置看板（完美復刻直立式樣式） */
+        .kanban-table { width: 100%; border-collapse: collapse; }
+        .kanban-th { background: #f8f9fa; text-align: center; font-size: 12px; color: #666; padding: 8px; border-bottom: 2px solid #eee; }
+        .kanban-row-station { background: #ffffff; font-weight: bold; font-size: 14px; color: #333; }
+        .kanban-row-inter { background: #fdfdfd; font-size: 11px; color: #999; }
+        .kanban-cell { padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: center; position: relative; }
+        .kanban-cell.station-name { text-align: left; padding-left: 15px; border-left: 4px solid #ccc; }
+        .train-icon { font-size: 18px; color: var(--twl-color); animation: pulse 1.5s infinite ease-in-out; }
+        .station-code-slug { font-size: 11px; color: #aaa; font-weight: normal; margin-left: 5px; }
 
-        .train-col {
-            width: 60px;
-            text-align: center;
-        }
-
-        .mtr-train-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: #1a202c;
-            border: 2px solid #a0aec0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            box-shadow: 0 0 6px rgba(0,0,0,0.5);
-            animation: pulse 1.5s infinite ease-in-out;
-        }
-        .mtr-train-icon::before {
-            content: '';
-            width: 14px;
-            height: 8px;
-            background: #e2231a; 
-            border-radius: 3px 3px 0 0;
-            position: absolute;
-            top: 3px;
-        }
-        .mtr-train-icon::after {
-            content: '';
-            width: 8px;
-            height: 3px;
-            background: #63b3ed; 
-            position: absolute;
-            top: 5px;
-        }
+        /* 📡 歷史班次紀錄與高級篩選器 */
+        .filter-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .filter-select { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; font-size: 13px; outline: none; }
+        .filter-select:focus { border-color: var(--twl-color); }
+        
+        .log-list { max-height: 450px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
+        .log-item { background: #f8f9fa; border-left: 4px solid #52c41a; padding: 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .log-item.departed { border-left-color: #1890ff; }
+        .log-main { display: flex; flex-direction: column; gap: 3px; }
+        .log-time { font-family: monospace; color: #888; font-size: 11px; }
+        .log-station-tag { font-weight: bold; color: #222; }
+        .log-dir-tag { font-size: 12px; padding: 2px 6px; border-radius: 3px; background: #e6f7ff; color: #1890ff; font-weight: bold; }
+        .log-dir-tag.up { background: #f6ffed; color: #52c41a; }
+        .log-dest { font-size: 11px; color: #666; }
 
         @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.9; }
-            50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 10px rgba(226,35,26,0.6); }
-            100% { transform: scale(1); opacity: 0.9; }
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="nav-title">
-            <i class="fa-solid fa-chart-simple" style="color: #E2231A;"></i> 📊 MTR 實時數據監控後台
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-folder-tree"></i> 港鐵路線文件夾
         </div>
-        <a href="/" class="btn-nav">
-            <i class="fa-solid fa-map-location-dot"></i> 前往實時地圖
-        </a>
-    </header>
+        <ul class="folder-menu">
+            <li class="folder-item active" onclick="switchLine('TWL', this)">
+                <i class="fa-solid fa-folder-open"></i> <span>荃灣線 (TWL)</span>
+            </li>
+            <li class="folder-item" onclick="switchLine('TKL', this)">
+                <i class="fa-solid fa-folder"></i> <span>將軍澳線 (TKL)</span>
+            </li>
+        </ul>
+    </div>
 
-    <div class="container">
-        
-        <div class="stats-card">
-            <div class="stats-title">荃灣線 (TWL) 當前狀態</div>
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <div class="stat-label">上行運行<br>中列車</div>
-                    <div class="stat-value" id="val-up">0</div>
+    <div class="main-content">
+        <h2 class="header-title" id="current-line-title">
+            <i class="fa-solid fa-chart-line"></i> 荃灣線實時調度狀態
+        </h2>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-info">
+                    <div class="stat-label">上行在途中列車 (往荃灣/寶琳)</div>
+                    <div class="stat-value" id="stat-up-count">0</div>
                 </div>
-                <div class="stat-box">
-                    <div class="stat-label">下行運行<br>中列車</div>
-                    <div class="stat-value" id="val-down">0</div>
+                <i class="fa-solid fa-train-subway stat-icon" style="color: #52c41a;"></i>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <div class="stat-label">下行在途中列車 (往中環/北角)</div>
+                    <div class="stat-value" id="stat-down-count">0</div>
                 </div>
-                <div class="stat-box">
-                    <div class="stat-label">本日最高<br>用車量</div>
-                    <div class="stat-value" id="val-peak">0</div>
+                <i class="fa-solid fa-train-subway stat-icon" style="color: #1890ff;"></i>
+            </div>
+            <div class="stat-card">
+                <div class="stat-info">
+                    <div class="stat-label">當日最高全線用車量</div>
+                    <div class="stat-value" id="stat-peak-count">0</div>
                 </div>
+                <i class="fa-solid fa-bolt stat-icon" style="color: #faad14;"></i>
             </div>
         </div>
 
-        <table class="monitor-table">
-            <tbody id="monitor-body">
-                </tbody>
-        </table>
+        <div class="dashboard-grid">
+            
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-list-ol"></i> 簡易列車位置看板 (實時隊列)</div>
+                <table class="kanban-table">
+                    <thead>
+                        <tr>
+                            <th class="kanban-th" style="text-align: left; width: 40%;">車站／區間</th>
+                            <th class="kanban-th" style="width: 30%;">上行 (往荃灣)</th>
+                            <th class="kanban-th" style="width: 30%;">下行 (往中環)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kanban-body">
+                        </tbody>
+                </table>
+            </div>
 
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> 歷史班次開出時間紀錄</div>
+                
+                <div class="filter-bar">
+                    <select class="filter-select" id="filter-station" onchange="loadLogs()">
+                        <option value="ALL">所有車站 (ALL)</option>
+                    </select>
+                    <select class="filter-select" id="filter-date" onchange="loadLogs()">
+                        <option value="ALL">任何日子 (ALL)</option>
+                    </select>
+                    <select class="filter-select" id="filter-time" onchange="loadLogs()">
+                        <option value="ALL">任何時段 (ALL)</option>
+                        <option value="06:00-09:00">早晨繁忙時間 (06:00-09:00)</option>
+                        <option value="09:00-17:00">日間非繁忙 (09:00-17:00)</option>
+                        <option value="17:00-20:00">傍晚繁忙時間 (17:00-20:00)</option>
+                        <option value="20:00-23:59">晚間夜行時段 (20:00-23:59)</option>
+                    </select>
+                </div>
+
+                <div class="log-list" id="log-list-container">
+                    </div>
+            </div>
+
+        </div>
     </div>
+
     <script>
         let currentLine = 'TWL';
         const STATIONS_DICT = {
@@ -234,12 +188,6 @@
                 {code: 'LHP', name: '康城'}, {code: 'TIK', name: '調景嶺'}, {code: 'YAT', name: '油塘'},
                 {code: 'QUB', name: '鰂魚涌'}, {code: 'NOP', name: '北角'}
             ]
-        };
-
-        const ST_NAMES_ZH = {
-            "CEN":"中環", "ADM":"金鐘", "TST":"尖沙咀", "JOR":"佐敦", "YMT":"油麻地",
-            "MOK":"旺角", "PRE":"太子", "SSP":"深水埗", "CSW":"長沙灣", "LCK":"荔枝角",
-            "MEF":"美孚", "LAK":"荔景", "KWF":"葵芳", "KWH":"葵興", "TWH":"大窩口", "TSW":"荃灣"
         };
 
         // 初始化與切換路線
@@ -296,7 +244,7 @@
                         <td class="kanban-cell" id="cell-sta-${list[i].code}-DOWN"></td>
                     </tr>
                 `;
-                // 站間區間行
+                // 站間區間行 (最後一站下面沒有區間)
                 if (i < list.length - 1) {
                     tbody.innerHTML += `
                         <tr class="kanban-row-inter" id="row-inter-${list[i].code}-${list[i+1].code}">
@@ -314,43 +262,39 @@
             fetch(`/api/admin/dashboard?line=${currentLine}`)
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById('stat-up-count').innerText = data.up_running || 0;
-                    document.getElementById('stat-down-count').innerText = data.down_running || 0;
-                    document.getElementById('stat-peak-count').innerText = data.peak_use_today || 0;
+                    document.getElementById('stat-up-count').innerText = data.up_running;
+                    document.getElementById('stat-down-count').innerText = data.down_running;
+                    document.getElementById('stat-peak-count').innerText = data.peak_use_today;
 
                     // 清空看板上的舊車
                     document.querySelectorAll('[id^="cell-sta-"], [id^="cell-inter-"]').forEach(c => c.innerHTML = '');
 
                     // 將火車塞入對應的位置
-                    var trains = data.active_trains || data.trains || [];
-                    trains.forEach(train => {
-                        const from_sta = String(train.from || train.from_sta).toUpperCase().trim();
-                        const to_sta = String(train.to || train.to_sta).toUpperCase().trim();
-                        const direction = String(train.direction).toUpperCase().trim();
+                    data.active_trains.forEach(train => {
+                        const iconHtml = `<i class="fa-solid fa-train-subway train-icon" title="${train.id} - 進度:${Math.round(train.ratio*100)}%"></i>`;
                         
-                        const destName = ST_NAMES_ZH[train.dest] || train.dest;
-                        const iconHtml = `<i class="fa-solid fa-train-subway train-icon" title="終點站: 往 ${destName} | 進度: ${Math.round(train.ratio*100)}%"></i>`;
-                        
-                        // 🎯 修正1：容錯判定。如果是進站，或者進度已到 85% 以上，直接算作進入 to 車站
-                        if (train.status === 'stopped_at_station' || train.ratio >= 0.85) {
-                            const cell = document.getElementById(`cell-sta-${to_sta}-${direction}`);
+                        if (train.status === 'arrived' || train.ratio >= 0.95) {
+                            // 擺在 to 車站
+                            const cell = document.getElementById(`cell-sta-${train.to}-${train.direction}`);
                             if(cell) cell.innerHTML = iconHtml;
-                        } else if (train.ratio <= 0.15) {
-                            // 剛發車，還在起點站
-                            const cell = document.getElementById(`cell-sta-${from_sta}-${direction}`);
+                        } else if (train.ratio <= 0.05) {
+                            // 擺在 from 車站
+                            const cell = document.getElementById(`cell-sta-${train.from}-${train.direction}`);
                             if(cell) cell.innerHTML = iconHtml;
                         } else {
-                            // 🎯 修正2：消除下行站間 ID 鏡像配對盲區
-                            let cellId = `cell-inter-${from_sta}-${to_sta}-${direction}`;
+                            // 擺在區間行
+                            // 荃灣線往下走(UP)是從 CEN往TSW，所以 index 順序需要匹配
+                            let cellId = `cell-inter-${train.from}-${train.to}-${train.direction}`;
                             let cell = document.getElementById(cellId);
                             if(!cell) {
-                                cellId = `cell-inter-${to_sta}-${from_sta}-${direction}`;
+                                // 容錯：反向排序區間
+                                cellId = `cell-inter-${train.to}-${train.from}-${train.direction}`;
                                 cell = document.getElementById(cellId);
                             }
                             if(cell) cell.innerHTML = iconHtml;
                         }
                     });
-                }).catch(err => console.error("後台看板數據更新失敗:", err));
+                });
         }
 
         // 載入與過濾歷史日誌
@@ -359,17 +303,13 @@
             const date = document.getElementById('filter-date').value;
             const time = document.getElementById('filter-time').value;
 
-            // 後端日誌路由兼容安全性保護
             fetch(`/api/admin/logs?line=${currentLine}&station=${sta}&date=${date}&time=${time}`)
-                .then(res => {
-                    if(!res.ok) return [];
-                    return res.json();
-                })
+                .then(res => res.json())
                 .then(logs => {
                     const container = document.getElementById('log-list-container');
                     container.innerHTML = '';
                     
-                    if(!logs || logs.length === 0) {
+                    if(logs.length === 0) {
                         container.innerHTML = '<div style="text-align:center; color:#999; padding:20px; font-size:13px;">暫無符合條件的捕捉數據</div>';
                         return;
                     }
@@ -380,26 +320,21 @@
                         const eventText = isArr ? '列車進站中 (ttnt=0)' : '列車已開出 (發車)';
                         const dirText = log.direction === 'UP' ? '↑ 上行' : '↓ 下行';
                         const dirClass = log.direction === 'UP' ? 'up' : '';
-                        const stationName = ST_NAMES_ZH[log.station] || log.station;
-                        const destName = ST_NAMES_ZH[log.dest] || log.dest;
 
                         container.innerHTML += `
                             <div class="log-item ${itemClass}">
                                 <div class="log-main">
                                     <div>
-                                        <span class="log-station-tag">${stationName}</span> 
+                                        <span class="log-station-tag">${log.station}</span> 
                                         <span style="margin-left:8px; color:${isArr?'green':'#1890ff'}; font-weight:bold;">${eventText}</span>
                                     </div>
-                                    <div class="log-dest">終點站: 往 ${destName}</div>
+                                    <div class="log-dest">終點站: ${log.dest || '未知'}</div>
                                     <div class="log-time">${log.timestamp}</div>
                                 </div>
                                 <span class="log-dir-tag ${dirClass}">${dirText}</span>
                             </div>
                         `;
                     });
-                }).catch(() => {
-                    // 靜默降級：若日誌存檔功能尚未啟用，不拋出報錯阻斷主程序
-                    document.getElementById('log-list-container').innerHTML = '<div style="text-align:center; color:#aaa; padding:20px; font-size:13px;">歷史數據日誌模組常駐監聽中...</div>';
                 });
         }
 
@@ -407,9 +342,8 @@
         switchLine('TWL', document.querySelector('.folder-item'));
         
         // 建立常駐定時器
-        setInterval(updateDashboardData, 1000); // 與雲端引擎步進同步，調高至每 1 秒精準刷新看板車位
-        setInterval(loadLogs, 10000);            // 每 10 秒更新一次日誌
+        setInterval(updateDashboardData, 2000); // 每2秒刷新一次直立式看板車位
+        setInterval(loadLogs, 6000);             // 每6秒同步一次日誌
     </script>
-
 </body>
 </html>
