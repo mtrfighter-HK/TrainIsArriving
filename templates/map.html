@@ -25,7 +25,7 @@
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // 軌道
+        // 軌道 - 合併所有段
         fetch('/static/Track.TsuenWanLine.geojson')
             .then(r => r.json())
             .then(data => {
@@ -36,7 +36,7 @@
                         trackCoords = trackCoords.concat(f.geometry.coordinates);
                     }
                 });
-                console.log("軌道點數:", trackCoords.length);
+                console.log("總軌道點數:", trackCoords.length);
             });
 
         // 車站
@@ -57,7 +57,7 @@
                 }).addTo(map);
             });
 
-        // 接入 API + 移動
+        // 接入 API + 平滑移動
         async function updateLiveTrains() {
             try {
                 const res = await fetch('/api/live');
