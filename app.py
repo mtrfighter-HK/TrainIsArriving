@@ -9,6 +9,9 @@ app = Flask(__name__)
 # ====================== 配置 ======================
 TWL_ORDER = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"]
 
+# 🆕 新增：用來暫存真實車站班次資料的字典
+STATION_DATA = {}
+
 # ====================== 核心數據邏輯 ======================
 def get_current_trains():
     """產生實時（目前為模擬）的列車數據，供地圖與後台共同使用"""
@@ -27,10 +30,8 @@ def get_live_trains():
 
 @app.route('/api/admin/dashboard')
 def admin_dashboard():
-    """🆕 新增：提供給後台 admin.html 統計上下行列車數量使用"""
+    """提供給後台 admin.html 統計上下行列車數量使用"""
     trains = get_current_trains()
-    
-    # 統計上行與下行數量
     up_count = sum(1 for t in trains.values() if t["direction"] == "UP")
     down_count = sum(1 for t in trains.values() if t["direction"] == "DOWN")
     
@@ -41,8 +42,15 @@ def admin_dashboard():
         "trains": list(trains.values())
     })
 
+@app.route('/api/station/<sta>')
+def get_station_data(sta):
+    """🆕 新增：當前端點擊車站時，回傳該站最新的真實到站資料"""
+    # 根據車站代碼 (如 PRE) 取得儲存的資料，如果沒有就回傳空字典
+    return jsonify(STATION_DATA.get(sta.upper(), {}))
+
 # ====================== 背景收集器 ======================
 def background_collector():
+    global STATION_DATA
     while True:
         try:
             for sta in TWL_ORDER:
@@ -50,12 +58,18 @@ def background_collector():
                     url = f"https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TWL&sta={sta}"
                     r = requests.get(url, timeout=8)
                     if r.status_code == 200:
+                        data = r.json()
+                        # 🆕 新增：解析港鐵 API，把 UP 和 DOWN 的班次資料存起來
+                        if data.get("status") == 1:
+                            # 港鐵 API 的資料通常放在 data["data"]["TWL-PRE"] 這樣的結構裡
+                            STATION_DATA[sta] = data.get("data", {}).get(f"TWL-{sta}", {})
                         print(f"收集 {sta} 數據成功")
                 except:
                     pass
         except:
             pass
-        time.sleep(60)
+        # 避免被官方 API 封鎖，這裡設為每 60 秒更新一次所有車站
+        time.sleep(60) 
 
 threading.Thread(target=background_collector, daemon=True).start()
 
@@ -65,10 +79,9 @@ def keep_alive():
         try:
             requests.get("http://localhost:5000", timeout=5)
             requests.get("http://localhost:5000/api/live", timeout=5)
-            print("Keep-Alive ping 成功")
         except:
-            print("Keep-Alive ping 失敗")
-        time.sleep(180)  # 每3分鐘 ping 一次
+            pass
+        time.sleep(180)
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
@@ -80,21 +93,6 @@ def index():
 @app.route('/admin')
 def admin():
     return render_template('admin.html')
-
-@app.route('/data')
-def data():
-    html = """
-    <html>
-    <head><meta charset="UTF-8"><title>MTR 數據後台</title></head>
-    <body style="font-family:Arial; padding:20px;">
-        <h1>📊 MTR 數據後台</h1>
-        <p><a href="/">← 返回地圖</a></p>
-        <p><a href="/api/live">查看 Live API 數據</a></p>
-        <p><a href="/api/admin/dashboard">查看 後台統計 API 數據</a></p>
-    </body>
-    </html>
-    """
-    return html
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
