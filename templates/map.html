@@ -4,21 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>港鐵實時地圖</title>
+    <!-- 載入 Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin:0; padding:0; }
-        #map { height: 100vh; width: 100%; }
-        .title { position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(255,255,255,0.95); padding: 12px 18px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.2); font-size: 19px; font-weight: bold; }
-        .data-btn { position: absolute; top: 15px; right: 15px; z-index: 1000; background: white; padding: 10px 16px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.2); font-size: 16px; text-decoration: none; color: black; }
+        /* 基礎設定與 Flexbox 佈局 */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* 讓整個頁面填滿螢幕高度 */
+        }
+
+        /* 🚇 新增：頂部導航欄設計 */
+        .navbar {
+            background-color: #ed1d24; /* 港鐵荃灣綫紅色 */
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 2000; /* 確保導航欄在地圖上方 */
+        }
+
+        .navbar-brand {
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar-btn {
+            background-color: white;
+            color: #ed1d24;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .navbar-btn:hover {
+            background-color: #f8f9fa;
+            transform: translateY(-1px);
+        }
+
+        /* 修改：讓地圖自動填滿剩餘高度 */
+        #map { 
+            flex-grow: 1; /* 佔據導航欄以外的所有空間 */
+            width: 100%; 
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
-    <div class="title">🗺️ 港鐵實時地圖 - 荃灣綫</div>
-    <a href="/admin" class="data-btn">📊 數據後台</a>
+
+    <!-- 新的導航欄介面 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <span>🗺️</span> 港鐵實時地圖 - 荃灣綫
+        </div>
+        <a href="/admin" class="navbar-btn">📊 數據後台</a>
+    </nav>
+
+    <!-- 地圖容器 -->
     <div id="map"></div>
 
+    <!-- 載入 Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // ==========================================
+        // 以下為你原本完全正常的 JS 核心邏輯 (未更動)
+        // ==========================================
         var map = L.map('map').setView([22.3193, 114.1694], 12);
         var trainMarkers = {};
         var trackCoords = [];
