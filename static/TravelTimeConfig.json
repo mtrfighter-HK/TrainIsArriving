@@ -1,0 +1,75 @@
+{
+  "TRAVEL_TIME_CONFIG": {
+    "TWL": {
+      "TSW_TWH": 112, "TWH_KWH": 98, "KWH_KWF": 77, "KWF_LAK": 88, "LAK_MEF": 118,
+      "MEF_LCK": 87, "LCK_CSW": 82, "CSW_SSP": 87, "SSP_PRE": 92, "PRE_MOK": 68,
+      "MOK_YMT": 72, "YMT_JOR": 87, "JOR_TST": 77, "TST_ADM": 168, "ADM_CEN": 95,
+      "CEN_ADM": 92, "ADM_TST": 165, "TST_JOR": 75, "JOR_YMT": 85, "YMT_MOK": 70,
+      "MOK_PRE": 65, "PRE_SSP": 90, "SSP_CSW": 85, "CSW_LCK": 80, "LCK_MEF": 85,
+      "MEF_LAK": 115, "LAK_KWF": 85, "KWF_KWH": 75, "KWH_TWH": 95, "TWH_TSW": 110
+    },
+    "KTL": {
+      "TIK_YAT": 118, "YAT_LAT": 128, "LAT_KWT": 102, "KWT_NTK": 78, "NTK_KOB": 87,
+      "KOB_CHH": 108, "CHH_DIH": 98, "DIH_WTS": 88, "WTS_LOF": 93, "LOF_KOT": 88,
+      "KOT_SKM": 93, "SKM_PRE": 88, "PRE_MOK": 68, "MOK_YMT": 72, "YMT_HOM": 108,
+      "HOM_WHA": 98, "WHA_HOM": 95, "HOM_YMT": 105, "YMT_MOK": 70, "MOK_PRE": 65,
+      "PRE_SKM": 85, "SKM_KOT": 90, "KOT_LOF": 85, "LOF_WTS": 90, "WTS_DIH": 85,
+      "DIH_CHH": 95, "CHH_KOB": 105, "KOB_NTK": 85, "NTK_KWT": 75, "KWT_LAT": 100,
+      "LAT_YAT": 125, "YAT_TIK": 115
+    },
+    "ISL": {
+      "KET_HKU": 118, "HKU_SYP": 92, "SYP_SHW": 113, "SHW_CEN": 82, "CEN_ADM": 88,
+      "ADM_WAC": 82, "WAC_CAB": 87, "CAB_TIH": 78, "TIH_FOH": 72, "FOH_NOP": 88,
+      "NOP_QUB": 82, "QUB_TAK": 88, "TAK_SWH": 78, "SWH_SKW": 78, "SKW_HFC": 158,
+      "HFC_CHW": 128, "CHW_HFC": 125, "HFC_SKW": 155, "SKW_SWH": 75, "SWH_TAK": 75,
+      "TAK_QUB": 85, "QUB_NOP": 80, "NOP_FOH": 85, "FOH_TIH": 70, "TIH_CAB": 75,
+      "CAB_WAC": 85, "WAC_ADM": 80, "ADM_CEN": 85, "CEN_SHW": 80, "SHW_SYP": 110,
+      "SYP_HKU": 90, "HKU_KET": 115
+    },
+    "TKL": {
+      "NOP_QUB": 98, "QUB_YAT": 148, "YAT_TIK": 118, "TIK_TKO": 108, "TKO_HAH": 105,
+      "HAH_POA": 98, "TKO_LHP": 240, "POA_HAH": 95, "HAH_TKO": 102, "LHP_TKO": 235,
+      "TKO_TIK": 105, "TIK_YAT": 115, "YAT_QUB": 145, "QUB_NOP": 95
+    },
+    "TCL": {
+      "HOK_KOW": 125, "KOW_OLY": 95, "OLY_NAC": 85, "NAC_LAK": 120, "LAK_TSY": 210,
+      "TSY_SUN": 365, "SUN_TUC": 385,
+      "TUC_SUN": 380, "SUN_TSY": 360, "TSY_LAK": 205, "LAK_NAC": 115, "NAC_OLY": 82,
+      "OLY_KOW": 92, "KOW_HOK": 122
+    },
+    "AEL": {
+      "HOK_KOW": 110, "KOW_TSY": 360, "TSY_AIR": 845, "AIR_AWE": 125,
+      "AWE_AIR": 120, "AIR_TSY": 840, "TSY_KOW": 355, "KOW_HOK": 108
+    },
+    "SIL": {
+      "ADM_OCP": 245, "OCP_WCH": 95, "WCH_LET": 85, "LET_SOH": 95,
+      "SOH_LET": 92, "LET_WCH": 82, "WCH_OCP": 92, "OCP_ADM": 240
+    },
+    "DRL": {
+      "SUN_DIS": 215,
+      "DIS_SUN": 210
+    },
+    "EAL": {
+      "ADM_EXC": 185, "EXC_HUH": 215, "HUH_MKK": 205, "MKK_KOT": 155, "KOT_TAW": 235,
+      "TAW_SHT": 135, "SHT_FOT": 125, "FOT_UNI": 255, "UNI_TAP": 155, "TAP_TWO": 215,
+      "TWO_FAN": 265, "FAN_SHS": 125, "SHS_LOW": 295, "SHS_LMC": 565, "SHT_RAC": 230, "RAC_UNI": 280,
+      "LOW_SHS": 290, "LMC_SHS": 560, "SHS_FAN": 122, "FAN_TWO": 260, "TWO_TAP": 210,
+      "TAP_UNI": 150, "UNI_FOT": 250, "FOT_SHT": 120, "SHT_TAW": 130, "TAW_KOT": 230,
+      "KOT_MKK": 150, "MKK_HUH": 200, "HUH_EXC": 210, "EXC_ADM": 180, "UNI_RAC": 285, "RAC_SHT": 235
+    },
+    "TML": {
+      "WKS_MOS": 115, "MOS_HEO": 85, "HEO_TSH": 85, "TSH_SHM": 95, "SHM_CIO": 80,
+      "CIO_STW": 85, "STW_CKT": 55, "CKT_TAW": 50, "TAW_HIK": 165, "HIK_DIH": 115, 
+      "DIH_KAT": 105, "KAT_SUW": 90, "SUW_TKW": 85, "TKW_HOM": 115, "HOM_HUH": 135, 
+      "HUH_ETS": 125, "ETS_AUS": 125, "AUS_NAC": 145, "NAC_MEF": 145, "MEF_TWW": 285, 
+      "TWW_KSR": 425, "KSR_YUL": 185, "YUL_LOP": 105, "LOP_TIS": 135, "TIS_SIU": 165, 
+      "SIU_TUM": 115,
+      "TUM_SIU": 112, "SIU_TIS": 162, "TIS_LOP": 132, "LOP_YUL": 102, "YUL_KSR": 182,
+      "KSR_TWW": 420, "TWW_MEF": 280, "MEF_NAC": 142, "NAC_AUS": 142, "AUS_ETS": 122,
+      "ETS_HUH": 122, "HUH_HOM": 132, "HOM_TKW": 112, "TKW_SUW": 82, "SUW_KAT": 87, 
+      "KAT_DIH": 102, "DIH_HIK": 112, "HIK_TAW": 162, "TAW_CKT": 48, "CKT_STW": 52, 
+      "STW_CIO": 82, "CIO_SHM": 78, "SHM_TSH": 82, "TSH_HEO": 82, "HEO_MOS": 82, 
+      "MOS_WKS": 112
+    }
+  }
+}
