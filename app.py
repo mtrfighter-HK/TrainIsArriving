@@ -1,99 +1,226 @@
 import os
-import time
+import sqlite3
 import requests
 import threading
-from flask import Flask, jsonify, render_template
+import time
+import json
+from datetime import datetime
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
 
-app = Flask(__name__)
+app = FastAPI(title="MTR 實時地圖 - 荃灣綫 大數據持久化版")
 
-# ====================== 配置 ======================
-TWL_ORDER = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"]
+templates = Jinja2Templates(directory="templates")
 
-# 🆕 新增：用來暫存真實車站班次資料的字典
-STATION_DATA = {}
+# ==========================================
+# 💾 Railway Volume 永久路徑設定
+# ==========================================
+DB_DIR = "/app/data" if os.path.exists("/app/data") else "."
+DB_PATH = os.path.join(DB_DIR, "mtr_data.db")
 
-# ====================== 核心數據邏輯 ======================
-def get_current_trains():
-    """產生實時（目前為模擬）的列車數據，供地圖與後台共同使用"""
-    t = time.time()
-    return {
-        "TWL-UP-1": {"line": "TWL", "direction": "UP", "from": "CEN", "to": "TSW", "progress": (t % 40) / 40, "dest": "荃灣"},
-        "TWL-UP-2": {"line": "TWL", "direction": "UP", "from": "ADM", "to": "TSW", "progress": ((t + 13) % 40) / 40, "dest": "荃灣"},
-        "TWL-DOWN-1": {"line": "TWL", "direction": "DOWN", "from": "TSW", "to": "CEN", "progress": ((t + 25) % 40) / 40, "dest": "中環"},
-    }
+def get_db():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# ====================== API 路由 ======================
-@app.route('/api/live')
-def get_live_trains():
-    """提供給前端 map.html 畫火車點使用"""
-    return jsonify(get_current_trains())
+# 初始化資料庫
+conn = get_db()
+conn.execute('''CREATE TABLE IF NOT EXISTS mtr_ttnt (
+    id INTEGER PRIMARY KEY,
+    timestamp TEXT,
+    line TEXT,
+    station TEXT,
+    direction TEXT,
+    dest TEXT,
+    ttnt INTEGER,
+    is_delay TEXT,
+    collected_at TEXT
+)''')
+conn.execute('''CREATE TABLE IF NOT EXISTS departure_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_time TEXT,
+    station TEXT,
+    direction TEXT,
+    dest TEXT
+)''')
+conn.commit()
+conn.close()
 
-@app.route('/api/admin/dashboard')
-def admin_dashboard():
-    """提供給後台 admin.html 統計上下行列車數量使用"""
-    trains = get_current_trains()
-    up_count = sum(1 for t in trains.values() if t["direction"] == "UP")
-    down_count = sum(1 for t in trains.values() if t["direction"] == "DOWN")
-    
-    return jsonify({
-        "up_running": up_count,
-        "down_running": down_count,
-        "total_running": len(trains),
-        "trains": list(trains.values())
-    })
-
-@app.route('/api/station/<sta>')
-def get_station_data(sta):
-    """🆕 新增：當前端點擊車站時，回傳該站最新的真實到站資料"""
-    # 根據車站代碼 (如 PRE) 取得儲存的資料，如果沒有就回傳空字典
-    return jsonify(STATION_DATA.get(sta.upper(), {}))
-
-# ====================== 背景收集器 ======================
+# ==========================================
+# 📡 背景收集器
+# ==========================================
 def background_collector():
-    global STATION_DATA
+    stations = [
+        ("TWL", "CEN"), ("TWL", "ADM"), ("TWL", "TST"), ("TWL", "JOR"),
+        ("TWL", "YMT"), ("TWL", "MOK"), ("TWL", "PRE"), ("TWL", "SSP"),
+        ("TWL", "CSW"), ("TWL", "LCK"), ("TWL", "MEF"), ("TWL", "LAK"),
+        ("TWL", "KWF"), ("TWL", "KWH"), ("TWL", "TWH"), ("TWL", "TSW")
+    ]
+    
+    last_api_state = {}
+    backup_day_counter = 0
+    
     while True:
         try:
-            for sta in TWL_ORDER:
+            conn = get_db()
+            c = conn.cursor()
+            now = datetime.now().isoformat()
+            
+            for line, sta in stations:
                 try:
-                    url = f"https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TWL&sta={sta}"
+                    url = f"https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line={line}&sta={sta}"
                     r = requests.get(url, timeout=8)
                     if r.status_code == 200:
-                        data = r.json()
-                        # 🆕 新增：解析港鐵 API，把 UP 和 DOWN 的班次資料存起來
-                        if data.get("status") == 1:
-                            # 港鐵 API 的資料通常放在 data["data"]["TWL-PRE"] 這樣的結構裡
-                            STATION_DATA[sta] = data.get("data", {}).get(f"TWL-{sta}", {})
-                        print(f"收集 {sta} 數據成功")
-                except:
-                    pass
-        except:
-            pass
-        # 避免被官方 API 封鎖，這裡設為每 60 秒更新一次所有車站
-        time.sleep(60) 
+                        data = r.json().get('data', {}).get(f'{line}-{sta}', {})
+                        for direction in ['UP', 'DOWN']:
+                            if direction in data:
+                                for train in data[direction]:
+                                    ttnt_val = train.get('ttnt')
+                                    if ttnt_val is not None and str(ttnt_val).isdigit():
+                                        ttnt_int = int(ttnt_val)
+                                        dest = train.get('dest')
+                                        is_delay_val = train.get('isdelay', 'N')
+                                        
+                                        c.execute('''INSERT INTO mtr_ttnt 
+                                            (timestamp, line, station, direction, dest, ttnt, is_delay, collected_at)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                                            (now, line, sta, direction, dest, ttnt_int, is_delay_val, now))
+                                        
+                                        key = f"{sta}_{direction}"
+                                        if key in last_api_state:
+                                            last_ttnt = last_api_state[key]
+                                            if last_ttnt == 0 and ttnt_int > 0:
+                                                c.execute('''INSERT INTO departure_events 
+                                                    (event_time, station, direction, dest)
+                                                    VALUES (?, ?, ?, ?)''',
+                                                    (now, sta, direction, dest))
+                                        last_api_state[key] = ttnt_int
+                except Exception as e:
+                    print(f"抓取車站 {sta} 失敗: {e}")
+            
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"資料庫寫入錯誤: {e}")
+            
+        backup_day_counter += 1
+        if backup_day_counter >= 2880:
+            backup_day_counter = 0
+            try:
+                conn = get_db()
+                conn.execute("DELETE FROM mtr_ttnt WHERE timestamp < datetime('now', '-7 days')")
+                conn.execute("VACUUM")
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"定時清理失敗: {e}")
+
+        time.sleep(30)
 
 threading.Thread(target=background_collector, daemon=True).start()
 
-# ====================== Keep-Alive ======================
-def keep_alive():
-    while True:
-        try:
-            requests.get("http://localhost:5000", timeout=5)
-            requests.get("http://localhost:5000/api/live", timeout=5)
-        except:
-            pass
-        time.sleep(180)
+# ==========================================
+# 📬 路由
+# ==========================================
 
-threading.Thread(target=keep_alive, daemon=True).start()
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse(request=request, name="map.html", context={})
 
-# ====================== 網頁視圖路由 ======================
-@app.route('/')
-def index():
-    return render_template('map.html')
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return templates.TemplateResponse(request=request, name="admin.html", context={})
 
-@app.route('/admin')
-def admin():
-    return render_template('admin.html')
+@app.get("/api/live")
+async def get_live_trains():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        SELECT t.line, t.station, t.direction, t.dest, t.ttnt, t.is_delay 
+        FROM mtr_ttnt t
+        INNER JOIN (
+            SELECT station, direction, MAX(timestamp) as max_ts
+            FROM mtr_ttnt
+            WHERE timestamp >= datetime('now', '-3 minutes') AND line = 'TWL'
+            GROUP BY station, direction
+        ) tm ON t.station = tm.station AND t.direction = tm.direction AND t.timestamp = tm.max_ts
+    ''')
+    rows = c.fetchall()
+    conn.close()
+    
+    trains = []
+    for row in rows:
+        trains.append({
+            "line": row["line"],
+            "station": row["station"],
+            "direction": row["direction"],
+            "dest": row["dest"],
+            "ttnt": row["ttnt"],
+            "is_delay": row["is_delay"]
+        })
+    return {"status": "success", "data": trains}
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+# 🟢 已修正：strftime 格式改為大寫 '%H'
+@app.get('/api/admin/departures')
+async def api_admin_departures(station: str = "ALL", period: str = "ALL", hour: str = "ALL"):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    query = "SELECT event_time, station, direction, dest FROM departure_events WHERE 1=1"
+    params = []
+    
+    if station and station != "ALL":
+        query += " AND station = ?"
+        params.append(station.upper())
+        
+    if period == "WEEKDAY":
+        query += " AND strftime('%w', event_time) BETWEEN '1' AND '5'"
+    elif period == "WEEKEND":
+        query += " AND (strftime('%w', event_time) = '0' OR strftime('%w', event_time) = '6')"
+        
+    if hour and hour != "ALL":
+        query += " AND strftime('%H', event_time) = ?"
+        params.append(f"{int(hour):02d}")
+        
+    query += " ORDER BY event_time DESC LIMIT 100"
+    
+    cursor.execute(query, tuple(params))
+    rows = cursor.fetchall()
+    conn.close()
+    return {"status": "success", "data": [dict(row) for row in rows]}
+
+@app.get('/api/admin/stats')
+async def api_admin_stats():
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM mtr_ttnt")
+        total_records = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM departure_events")
+        total_events = cursor.fetchone()[0]
+        conn.close()
+        return {"total_records": total_records, "total_departures": total_events}
+    except Exception:
+        return {"total_records": 0, "total_departures": 0}
+
+@app.get("/static/StationLocation_2026_06.geojson")
+async def get_station_geojson():
+    file_path = os.path.join("static", "StationLocation_2026_06.geojson")
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            return JSONResponse(json.load(f))
+    return JSONResponse({"error": "File not found"}, status_code=404)
+
+@app.get("/static/Track.TsuenWanLine.geojson")
+async def get_track_geojson():
+    file_path = os.path.join("static", "Track.TsuenWanLine.geojson")
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            return JSONResponse(json.load(f))
+    return JSONResponse({"error": "File not found"}, status_code=404)
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
