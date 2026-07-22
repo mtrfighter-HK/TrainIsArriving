@@ -2,179 +2,417 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
+    <title>MTR 實時列車地圖 - 訊號閉塞修正版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>港鐵實時地圖</title>
-    <!-- 載入 Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* 基礎設定與 Flexbox 佈局 */
-        body { 
-            margin: 0; 
-            padding: 0; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: 100vh; /* 讓整個頁面填滿螢幕高度 */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: Arial, sans-serif; }
+        #map { height: 100%; width: 100%; background: #ffffff; }
+        .nav-btn {
+            position: absolute; top: 15px; right: 15px; z-index: 1000;
+            background: white; border: 2px solid #ccc; padding: 10px 15px;
+            border-radius: 5px; font-weight: bold; text-decoration: none; color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover { background: #eee; }
+        .station-label {
+            background: none !important; border: none !important; box-shadow: none !important;
+            color: #111111; font-weight: bold; text-shadow: 1px 1px 2px #ffffff; font-size: 12px;
+        }
+        .leaflet-tooltip-left::before, .leaflet-tooltip-right::before,
+        .leaflet-tooltip-top::before, .leaflet-tooltip-bottom::before { display: none !important; }
+
+        .train-container {
+            width: 12px !important; height: 12px !important; display: flex; align-items: center; justify-content: center;
+            pointer-events: none;
+        }
+        .train-dot {
+            width: 10px !important; height: 10px !important; background-color: #ffffff; border: 2px solid #E2231A; 
+            border-radius: 50% !important; box-sizing: border-box;
+            box-shadow: 0 0 3px rgba(0,0,0,0.3); display: block;
         }
 
-        /* 🚇 新增：頂部導航欄設計 */
-        .navbar {
-            background-color: #ed1d24; /* 港鐵荃灣綫紅色 */
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            z-index: 2000; /* 確保導航欄在地圖上方 */
+        .train-dot-delayed {
+            width: 10px !important; height: 10px !important; background-color: #ffcc00; border: 2px solid #cc9900; 
+            border-radius: 50% !important; box-sizing: border-box; display: block;
+            box-shadow: 0 0 8px #ffcc00;
+            animation: mtrTrainPulse 0.8s infinite alternate;
         }
-
-        .navbar-brand {
-            font-size: 20px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .navbar-btn {
-            background-color: white;
-            color: #ed1d24;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: background-color 0.2s, transform 0.1s;
-        }
-
-        .navbar-btn:hover {
-            background-color: #f8f9fa;
-            transform: translateY(-1px);
-        }
-
-        /* 修改：讓地圖自動填滿剩餘高度 */
-        #map { 
-            flex-grow: 1; /* 佔據導航欄以外的所有空間 */
-            width: 100%; 
-            z-index: 1;
+        @keyframes mtrTrainPulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.3); opacity: 1; }
         }
     </style>
 </head>
 <body>
 
-    <!-- 新的導航欄介面 -->
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <span>🗺️</span> 港鐵實時地圖 - 荃灣綫
-        </div>
-        <a href="/admin" class="navbar-btn">📊 數據後台</a>
-    </nav>
-
-    <!-- 地圖容器 -->
+    <a href="/admin" class="nav-btn">📊 前往數據後台</a>
     <div id="map"></div>
 
-    <!-- 載入 Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // ==========================================
-        // 以下為你原本完全正常的 JS 核心邏輯 (未更動)
-        // ==========================================
-        var map = L.map('map').setView([22.3193, 114.1694], 12);
-        var trainMarkers = {};
-        var trackCoords = [];
-        var distances = [];
-        var totalDistance = 0;
+        var map = L.map('map').setView([22.321, 114.170], 12.5);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }).addTo(map);
 
-        // 軌道 + 累積距離
-        fetch('/static/Track.TsuenWanLine.geojson')
-            .then(r => r.json())
-            .then(data => {
-                L.geoJSON(data, { style: { color: "#ed1d24", weight: 5, opacity: 0.75 } }).addTo(map);
+        map.createPane('trackPane').style.zIndex = 450;   
+        map.createPane('trainPane').style.zIndex = 500;   
+        map.createPane('stationPane').style.zIndex = 550; 
 
-                data.features.forEach(f => {
-                    if (f.geometry.type === "LineString") {
-                        trackCoords = trackCoords.concat(f.geometry.coordinates);
-                    }
+        var stationCoords = {}; 
+        var stationLayers = {}; 
+        var trackFeatures = []; 
+        var travelTimeConfig = {}; 
+        var lastStationState = {}; 
+        var activeTrains = {}; 
+
+        Promise.all([
+            fetch('/路線軌道檔/Track.TsuenWanLine.geojson').then(res => res.json()),
+            fetch('/系統基本檔/StationLocation_2026_06.geojson').then(res => res.json()),
+            fetch('https://raw.githubusercontent.com/mtrfighter-HK/WhereAreTheIron/main/%E7%B3%BB%E7%B5%B1%E5%9F%BA%E6%9C%AC%E6%AA%94%2FTravelTimeConfig.json').then(res => res.json()).catch(() => null)
+        ]).then(([trackData, stationData, timeConfig]) => {
+
+            trackFeatures = trackData.features;
+            L.geoJSON(trackData, { style: { color: '#E2231A', weight: 4, opacity: 0.8 }, pane: 'trackPane' }).addTo(map);
+
+            if (timeConfig && timeConfig.travel_times) {
+                timeConfig.travel_times.forEach(t => {
+                    travelTimeConfig[`${t.from}_${t.to}`] = t.run_time_sec || t.duration_sec || 120; 
                 });
+            }
 
-                let cum = 0;
-                distances = [0];
-                for (let i = 1; i < trackCoords.length; i++) {
-                    const dx = trackCoords[i][0] - trackCoords[i-1][0];
-                    const dy = trackCoords[i][1] - trackCoords[i-1][1];
-                    cum += Math.sqrt(dx*dx + dy*dy);
-                    distances.push(cum);
+            L.geoJSON(stationData, {
+                filter: f => (f.properties.StationCode || f.properties.station_code || "") !== "NIL",
+                pointToLayer: function (feature, latlng) {
+                    var props = feature.properties;
+                    var staCode = (props.StationCode || props.station_code).toUpperCase();
+                    stationCoords[staCode] = [latlng.lat, latlng.lng];
+                    var outerMarker = L.circleMarker(latlng, { radius: 6, color: '#000000', fillColor: '#ffffff', fillOpacity: 1, weight: 2.5, pane: 'stationPane' }).addTo(map);
+                    L.circleMarker(latlng, { radius: 2, color: '#ffffff', fillColor: '#ffffff', fillOpacity: 1, weight: 1, pane: 'stationPane' }).addTo(map);
+                    stationLayers[staCode] = outerMarker; 
+                    return outerMarker; 
+                },
+                onEachFeature: function (feature, layer) {
+                    var props = feature.properties;
+                    var staName = props["StationName:zh"] || "未知車站";
+                    if (staName.endsWith("站")) staName = staName.slice(0, -1);
+                    layer.bindTooltip(staName, { permanent: true, direction: 'right', className: 'station-label', offset: [10, 0] });
+                    layer.bindPopup(`<b>${staName}</b><br>等待訊號更新...`);
                 }
-                totalDistance = cum || 1;
-            });
+            }).addTo(map);
 
-        // 車站
-        fetch('/static/StationLocation_2026_06.geojson')
-            .then(r => r.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    filter: f => f.properties.StationCode !== "NIL",
-                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
-                        radius: 5, color: "#333", fillColor: "#fff", fillOpacity: 0.9, weight: 3
-                    }),
-                    onEachFeature: function(feature, layer) {
-                        var zhName = feature.properties["StationName:zh"] || "未知站";
-                        var code = feature.properties.StationCode || "";
-                        var content = "<b>" + zhName + "</b> (" + code + ")<br>上行：載入中...<br>下行：載入中...";
-                        layer.bindPopup(content);
-                    }
-                }).addTo(map);
-            });
+            processTrainSchedules();
+            setInterval(processTrainSchedules, 10000);
 
-        // 接入 API + 恆速移動
-        async function updateLiveTrains() {
-            try {
-                const res = await fetch('/api/live');
-                const trains = await res.json();
+        }).catch(err => console.error("系統初始化失敗:", err));
 
-                Object.values(trainMarkers).forEach(m => map.removeLayer(m));
-                trainMarkers = {};
 
-                Object.keys(trains).forEach(id => {
-                    const train = trains[id];
-                    const progress = train.progress || 0.3;
+        function processTrainSchedules() {
+            fetch('/api/live')
+                .then(res => res.json())
+                .then(response => {
+                    if (response.status !== "success") return;
+                    var trainData = response.data;
 
-                    if (trackCoords.length > 50 && totalDistance > 0) {
-                        const targetDist = progress * totalDistance;
-                        let i = 0;
-                        while (i < distances.length - 1 && distances[i+1] < targetDist) i++;
+                    var currentGroup = {};
+                    var stationSchedules = {};
 
-                        const ratio = (targetDist - distances[i]) / (distances[i+1] - distances[i]);
-                        const p1 = trackCoords[i];
-                        const p2 = trackCoords[i+1];
+                    trainData.forEach(train => {
+                        if (train.line !== "TWL") return;
+                        var currentSta = train.station.toUpperCase();
+                        var dir = train.direction;
+                        var key = `${currentSta}_${dir}`;
 
-                        const lat = p1[1] + (p2[1] - p1[1]) * ratio;
-                        const lng = p1[0] + (p2[0] - p1[0]) * ratio;
+                        if (!stationSchedules[currentSta]) stationSchedules[currentSta] = [];
+                        stationSchedules[currentSta].push(train);
 
-                        var marker = L.circleMarker([lat, lng], {
-                            radius: 7.5,
-                            color: "#ffffff",
-                            fillColor: "#ef4444",
-                            fillOpacity: 1,
-                            weight: 3.5
-                        }).addTo(map);
+                        if (!currentGroup[key] || parseInt(train.ttnt) < parseInt(currentGroup[key].ttnt)) {
+                            currentGroup[key] = train; 
+                        }
+                    });
 
-                        marker.bindPopup(`<b>列車 ${train.direction}</b><br>從 ${train.from} 往 ${train.to} 中<br>進度: ${Math.round(progress * 100)}%`);
+                    Object.keys(currentGroup).forEach(key => {
+                        var currentTrain = currentGroup[key];
+                        var lastTrain = lastStationState[key];
 
-                        trainMarkers[id] = marker;
-                    }
+                        var currentTtnt = parseInt(currentTrain.ttnt);
+                        var currentSta = currentTrain.station.toUpperCase(); 
+                        var dir = currentTrain.direction;
+                        var prevSta = getPreviousStation(currentSta, dir); 
+
+                        var trainId = `${dir}_${prevSta}_${currentSta}`;
+
+                        if (lastTrain) {
+                            var lastTtnt = parseInt(lastTrain.ttnt);
+
+                            if ((lastTtnt === 0 && currentTtnt > 0) || (isTerminus(currentSta, dir) && currentTtnt > lastTtnt)) {
+                                if (prevSta) {
+                                    clearPreviousBlockTrain(prevSta, dir);
+                                    launchVirtualTrain(prevSta, currentSta, dir, currentTrain.dest);
+                                }
+                            }
+                        } else {
+                            if (prevSta && !activeTrains[trainId]) {
+                                if (currentTtnt === 2 || currentTtnt === 3) {
+                                    launchVirtualTrain(prevSta, currentSta, dir, currentTrain.dest);
+                                } else if (isFirstTrackSegment(currentSta, dir) && currentTtnt === 1) {
+                                    spawnStationTrain(prevSta, currentSta, dir, currentTrain.dest);
+                                }
+                            }
+                        }
+
+                        if (activeTrains[trainId]) {
+                            var runningTrain = activeTrains[trainId];
+
+                            if (currentTtnt === 0) {
+                                if (!runningTrain.inCompensationZone) {
+                                    runningTrain.enterCompensation(runningTrain.ratio); 
+                                }
+                            }
+                        }
+
+                        lastStationState[key] = currentTrain;
+                    });
+
+                    // 🟢 簡化車站彈窗顯示：每個方向只顯示首班列車 TTNT
+                    Object.keys(stationLayers).forEach(staCode => {
+                        var marker = stationLayers[staCode];
+                        var schedules = stationSchedules[staCode] || [];
+                        var tooltip = marker.getTooltip();
+                        var staName = tooltip ? tooltip.getContent() : staCode;
+
+                        var popupContent = `<b>${staName} (${staCode})</b><br><hr style="border:0;border-top:1px solid #ccc;margin:5px 0;">`;
+                        if (schedules.length === 0) {
+                            popupContent += `<span style="color:#888;font-size:12px;">暫無實時列車即將進站</span>`;
+                        } else {
+                            var upTrains = schedules.filter(t => t.direction === 'UP');
+                            var downTrains = schedules.filter(t => t.direction === 'DOWN');
+
+                            var nextUpTrain = upTrains.sort((a, b) => parseInt(a.ttnt) - parseInt(b.ttnt))[0];
+                            var nextDownTrain = downTrains.sort((a, b) => parseInt(a.ttnt) - parseInt(b.ttnt))[0];
+
+                            if (nextUpTrain) {
+                                var upTtnt = parseInt(nextUpTrain.ttnt);
+                                var upText = (upTtnt === 0) ? `<span style="color:green;font-weight:bold;">列車進站中</span>` : `<span style="color:#E2231A;font-weight:bold;">${upTtnt}</span> 分鐘後`;
+                                popupContent += `<div style="font-size:12px;margin:3px 0;">• <b>往荃灣</b>: ${upText}</div>`;
+                            } else {
+                                popupContent += `<div style="font-size:12px;margin:3px 0;color:#999;">• <b>往荃灣</b>: 暫無班次數據</div>`;
+                            }
+
+                            if (nextDownTrain) {
+                                var downTtnt = parseInt(nextDownTrain.ttnt);
+                                var downText = (downTtnt === 0) ? `<span style="color:green;font-weight:bold;">列車進站中</span>` : `<span style="color:#E2231A;font-weight:bold;">${downText}</span> 分鐘後`;
+                                popupContent += `<div style="font-size:12px;margin:3px 0;">• <b>往中環</b>: ${downText}</div>`;
+                            } else {
+                                popupContent += `<div style="font-size:12px;margin:3px 0;color:#999;">• <b>往中環</b>: 暫無班次數據</div>`;
+                            }
+                        }
+                        marker.setPopupContent(popupContent);
+                    });
                 });
-            } catch (e) {
-                console.error("API 更新失敗", e);
+        }
+
+        function clearPreviousBlockTrain(currentLaunchStation, direction) {
+            var prevPrevSta = getPreviousStation(currentLaunchStation, direction === "UP" ? "DOWN" : "UP"); 
+            if (!prevPrevSta) return;
+            var oldTrainId = `${direction}_${prevPrevSta}_${currentLaunchStation}`;
+            if (activeTrains[oldTrainId]) {
+                activeTrains[oldTrainId].destroy();
             }
         }
 
-        setInterval(updateLiveTrains, 800);
-        updateLiveTrains();
+        class VirtualTrain {
+            constructor(fromSta, toSta, direction, dest, isPreSpawn = false) {
+                this.fromSta = fromSta;
+                this.toSta = toSta;
+                this.direction = direction;
+                this.dest = dest;
+                this.id = `${direction}_${fromSta}_${toSta}`;
+                this.isDelayed = false;
+
+                var geojsonDataDir = (direction === "UP") ? "Up" : "Down";
+                this.trackFeature = trackFeatures.find(f => f.properties.direction === geojsonDataDir && f.properties.from === fromSta && f.properties.to === toSta);
+                if (!this.trackFeature) return;
+                this.coords = this.trackFeature.geometry.coordinates;
+
+                this.spatialData = precomputeTrackDistances(this.coords);
+
+                var timeKey = `${fromSta}_${toSta}`;
+                this.totalDuration = (travelTimeConfig[timeKey] || 110) * 1000; 
+
+                this.startTime = Date.now();
+                this.ratio = 0.0;
+                this.inCompensationZone = false;
+                this.timer = null;
+
+                this.iconElement = L.divIcon({ 
+                    className: 'train-container', 
+                    html: '<div class="train-dot" id="dot_' + this.id + '"></div>', 
+                    iconSize: [12, 12], 
+                    iconAnchor: [6, 6] 
+                });
+
+                var startLatLng = this.spatialData.points[0];
+                this.marker = L.marker(startLatLng, { icon: this.iconElement, pane: 'trainPane' }).addTo(map);
+                this.updatePopupText("自動巡航中");
+
+                if (!isPreSpawn) {
+                    this.startCruise();
+                } else {
+                    this.updatePopupText("始發月台待命");
+                }
+            }
+
+            updatePopupText(statusHtml) {
+                var delayNotice = this.isDelayed ? `<br><span style="color:orange;font-weight:bold;">⚠️ 列車稍為延遲</span>` : '';
+                this.marker.bindPopup(`<b>目的地:</b> ${this.dest}<br><b>區間:</b> ${this.fromSta} ➔ ${this.toSta}<br><b>狀態:</b> ${statusHtml}${delayNotice}`);
+            }
+
+            startCruise() {
+                if (this.timer) clearInterval(this.timer);
+                this.isDelayed = false;
+                this.startTime = Date.now();
+
+                this.timer = setInterval(() => {
+                    var elapsed = Date.now() - this.startTime;
+                    var currentProgress = elapsed / this.totalDuration;
+                    
+                    this.ratio = Math.min(1.0, currentProgress);
+
+                    var latlng = interpolateByTrueDistance(this.spatialData, this.ratio);
+                    if (latlng) this.marker.setLatLng(latlng);
+
+                    if (this.ratio >= 1.0) {
+                        clearInterval(this.timer);
+                        this.arrive();
+                    }
+                }, 1000);
+            }
+
+            enterCompensation(startRatio = 0.0) {
+                this.inCompensationZone = true;
+                this.isDelayed = false;
+                if (this.timer) clearInterval(this.timer);
+
+                var innerDot = document.getElementById('dot_' + this.id);
+                if (innerDot) innerDot.className = 'train-dot';
+
+                this.ratio = startRatio;
+                var compStartTime = Date.now();
+                var compDuration = 6000;
+
+                this.updatePopupText("正在減速進站...");
+
+                this.timer = setInterval(() => {
+                    var elapsed = Date.now() - compStartTime;
+                    var compProgress = elapsed / compDuration; 
+
+                    this.ratio = startRatio + (1.0 - startRatio) * compProgress;
+
+                    if (this.ratio >= 1.0) {
+                        clearInterval(this.timer);
+                        var lastPt = this.spatialData.points[this.spatialData.points.length - 1];
+                        this.marker.setLatLng(lastPt);
+                        this.arrive(); 
+                    } else {
+                        var latlng = interpolateByTrueDistance(this.spatialData, this.ratio);
+                        if (latlng) this.marker.setLatLng(latlng);
+                    }
+                }, 200); 
+            }
+
+            arrive() {
+                this.updatePopupText("<span style='color:#E2231A;font-weight:bold;'>列車已進站 / 正在上落客</span>");
+                if (isTerminus(this.toSta, this.direction)) {
+                    setTimeout(() => { this.destroy(); }, 20000);
+                }
+            }
+
+            destroy() {
+                if (this.timer) clearInterval(this.timer);
+                if (this.marker) map.removeLayer(this.marker);
+                delete activeTrains[this.id];
+            }
+        }
+
+        function precomputeTrackDistances(coords) {
+            var points = coords.map(c => [c[1], c[0]]);
+            var distances = [0];
+            var totalDist = 0;
+
+            for (var i = 0; i < points.length - 1; i++) {
+                var d = L.latLng(points[i]).distanceTo(L.latLng(points[i+1]));
+                totalDist += d;
+                distances.push(totalDist);
+            }
+            return { points: points, distances: distances, totalDistance: totalDist };
+        }
+
+        function interpolateByTrueDistance(spatialData, ratio) {
+            var targetDist = spatialData.totalDistance * ratio;
+            var dists = spatialData.distances;
+            var pts = spatialData.points;
+
+            if (targetDist <= 0) return pts[0];
+            if (targetDist >= spatialData.totalDistance) return pts[pts.length - 1];
+
+            for (var i = 0; i < dists.length - 1; i++) {
+                if (targetDist >= dists[i] && targetDist <= dists[i+1]) {
+                    var segDist = dists[i+1] - dists[i];
+                    if (segDist === 0) return pts[i];
+                    var segRatio = (targetDist - dists[i]) / segDist;
+                    
+                    var p1 = pts[i];
+                    var p2 = pts[i+1];
+                    return [
+                        p1[0] + (p2[0] - p1[0]) * segRatio,
+                        p1[1] + (p2[1] - p1[1]) * segRatio
+                    ];
+                }
+            }
+            return pts[pts.length - 1];
+        }
+
+        function launchVirtualTrain(fromSta, toSta, dir, dest) {
+            var trainId = `${dir}_${fromSta}_${toSta}`;
+            if (activeTrains[trainId]) {
+                activeTrains[trainId].destroy();
+            }
+            activeTrains[trainId] = new VirtualTrain(fromSta, toSta, dir, dest, false);
+        }
+
+        function spawnStationTrain(fromSta, toSta, dir, dest) {
+            var trainId = `${dir}_${fromSta}_${toSta}`;
+            if (!activeTrains[trainId]) {
+                activeTrains[trainId] = new VirtualTrain(fromSta, toSta, dir, dest, true);
+            }
+        }
+
+        const TWL_ORDER = ["CEN", "ADM", "TST", "JOR", "YMT", "MOK", "PRE", "SSP", "CSW", "LCK", "MEF", "LAK", "KWF", "KWH", "TWH", "TSW"];
+
+        function getPreviousStation(nextSta, direction) {
+            var index = TWL_ORDER.indexOf(nextSta);
+            if (index === -1) return null;
+            if (direction === 'UP') { 
+                if (index > 0) return TWL_ORDER[index - 1];
+            }
+            if (direction === 'DOWN') { 
+                if (index < TWL_ORDER.length - 1) return TWL_ORDER[index + 1];
+            }
+            return null;
+        }
+
+        function isFirstTrackSegment(nextSta, dir) {
+            if (dir === "UP" && nextSta === "ADM") return true; 
+            if (dir === "DOWN" && nextSta === "TWH") return true; 
+            return false;
+        }
+
+        function isTerminus(sta, dir) {
+            return (dir === "UP" && sta === "TSW") || (dir === "DOWN" && sta === "CEN");
+        }
     </script>
 </body>
 </html>
