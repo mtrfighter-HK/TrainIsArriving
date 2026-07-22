@@ -27,7 +27,7 @@
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // 軌道 + 累積距離（解決速度不均）
+        // 軌道 + 累積距離
         fetch('/static/Track.TsuenWanLine.geojson')
             .then(r => r.json())
             .then(data => {
@@ -39,7 +39,6 @@
                     }
                 });
 
-                // 計算累積距離
                 let cum = 0;
                 distances = [0];
                 for (let i = 1; i < trackCoords.length; i++) {
@@ -102,7 +101,7 @@
                             weight: 3.5
                         }).addTo(map);
 
-                        marker.bindPopup(`<b>列車 ${train.direction}</b><br>往 ${train.dest}<br>從 ${train.from} 到 ${train.to}<br>進度: ${Math.round(progress * 100)}%`);
+                        marker.bindPopup(`<b>列車 ${train.direction}</b><br>從 ${train.from} 往 ${train.to} 中<br>進度: ${Math.round(progress * 100)}%`);
 
                         trainMarkers[id] = marker;
                     }
