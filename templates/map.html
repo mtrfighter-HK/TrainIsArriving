@@ -22,7 +22,6 @@
         var map = L.map('map').setView([22.3193, 114.1694], 12);
         var trainMarkers = {};
         var trackCoords = [];
-        var stationLayers = {};
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -51,14 +50,13 @@
                     onEachFeature: function(feature, layer) {
                         var zhName = feature.properties["StationName:zh"] || "未知站";
                         var code = feature.properties.StationCode || "";
-                        stationLayers[code] = layer;
                         var content = "<b>" + zhName + "</b> (" + code + ")<br>上行：載入中...<br>下行：載入中...";
                         layer.bindPopup(content);
                     }
                 }).addTo(map);
             });
 
-        // 接入 API + 更新
+        // 接入 API + 平滑移動
         async function updateLiveTrains() {
             try {
                 const res = await fetch('/api/live');
@@ -84,7 +82,7 @@
                                 weight: 3.5
                             }).addTo(map);
 
-                            marker.bindPopup(`<b>列車 ${train.direction}</b><br>往 ${train.dest}<br>進度: ${Math.round(progress * 100)}%`);
+                            marker.bindPopup(`<b>列車 ${train.direction}</b><br>往 ${train.dest}<br>從 ${train.from} 到 ${train.to}<br>進度: ${Math.round(progress * 100)}%`);
 
                             trainMarkers[id] = marker;
                         }
@@ -95,7 +93,7 @@
             }
         }
 
-        setInterval(updateLiveTrains, 6000);
+        setInterval(updateLiveTrains, 800);   // 調整更新頻率
         updateLiveTrains();
     </script>
 </body>
