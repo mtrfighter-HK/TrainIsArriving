@@ -41,7 +41,6 @@ threading.Thread(target=background_collector, daemon=True).start()
 def keep_alive():
     while True:
         try:
-            # Ping 自己多個端點
             requests.get("http://localhost:5000", timeout=5)
             requests.get("http://localhost:5000/api/live", timeout=5)
             print("Keep-Alive ping 成功")
@@ -62,7 +61,17 @@ def admin():
 
 @app.route('/data')
 def data():
-    return "<h1>數據後台</h1><p><a href='/'>返回地圖</a></p>"
+    html = """
+    <html>
+    <head><meta charset="UTF-8"><title>MTR 數據後台</title></head>
+    <body style="font-family:Arial; padding:20px;">
+        <h1>📊 MTR 數據後台</h1>
+        <p><a href="/">← 返回地圖</a></p>
+        <p><a href="/api/live">查看 Live API 數據</a></p>
+    </body>
+    </html>
+    """
+    return html
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
