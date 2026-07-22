@@ -69,9 +69,9 @@
         var activeTrains = {}; 
 
         Promise.all([
-            fetch('/路線軌道檔/Track.TsuenWanLine.geojson').then(res => res.json()),
-            fetch('/系統基本檔/StationLocation_2026_06.geojson').then(res => res.json()),
-            fetch('https://raw.githubusercontent.com/mtrfighter-HK/WhereAreTheIron/main/%E7%B3%BB%E7%B5%B1%E5%9F%BA%E6%9C%AC%E6%AA%94%2FTravelTimeConfig.json').then(res => res.json()).catch(() => null)
+            fetch('/static/Track.TsuenWanLine.geojson').then(res => res.json()),
+            fetch('/static/StationLocation_2026_06.geojson').then(res => res.json()),
+            fetch('/static/TravelTimeConfig.json').then(res => res.json()).catch(() => null)
         ]).then(([trackData, stationData, timeConfig]) => {
 
             trackFeatures = trackData.features;
