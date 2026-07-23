@@ -8,8 +8,12 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles  # 🟢 引入 StaticFiles
 
 app = FastAPI(title="MTR 實時地圖 - 荃灣綫 大數據持久化版")
+
+# 🟢 掛載 static 資料夾
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
 
@@ -161,7 +165,6 @@ async def get_live_trains():
         })
     return {"status": "success", "data": trains}
 
-# 🟢 已修正：strftime 格式改為大寫 '%H'
 @app.get('/api/admin/departures')
 async def api_admin_departures(station: str = "ALL", period: str = "ALL", hour: str = "ALL"):
     conn = get_db()
@@ -203,22 +206,6 @@ async def api_admin_stats():
         return {"total_records": total_records, "total_departures": total_events}
     except Exception:
         return {"total_records": 0, "total_departures": 0}
-
-@app.get("/static/StationLocation_2026_06.geojson")
-async def get_station_geojson():
-    file_path = os.path.join("static", "StationLocation_2026_06.geojson")
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            return JSONResponse(json.load(f))
-    return JSONResponse({"error": "File not found"}, status_code=404)
-
-@app.get("/static/Track.TsuenWanLine.geojson")
-async def get_track_geojson():
-    file_path = os.path.join("static", "Track.TsuenWanLine.geojson")
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            return JSONResponse(json.load(f))
-    return JSONResponse({"error": "File not found"}, status_code=404)
 
 if __name__ == "__main__":
     import uvicorn
