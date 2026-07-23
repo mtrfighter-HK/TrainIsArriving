@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>MTR 實時列車地圖 - 訊號閉塞修正版</title>
+    <title>MTR 實時列車地圖 - 動畫與彈窗修復版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -69,9 +69,9 @@
         var activeTrains = {}; 
 
         Promise.all([
-            fetch('/static/Track.TsuenWanLine.geojson').then(res => res.json()),
-            fetch('/static/StationLocation_2026_06.geojson').then(res => res.json()),
-            fetch('/static/TravelTimeConfig.json').then(res => res.json()).catch(() => null)
+            fetch('/路線軌道檔/Track.TsuenWanLine.geojson').then(res => res.json()),
+            fetch('/系統基本檔/StationLocation_2026_06.geojson').then(res => res.json()),
+            fetch('https://raw.githubusercontent.com/mtrfighter-HK/WhereAreTheIron/main/%E7%B3%BB%E7%B5%B1%E5%9F%BA%E6%9C%AC%E6%AA%94%2FTravelTimeConfig.json').then(res => res.json()).catch(() => null)
         ]).then(([trackData, stationData, timeConfig]) => {
 
             trackFeatures = trackData.features;
@@ -125,11 +125,15 @@
                         var dir = train.direction;
                         var key = `${currentSta}_${dir}`;
 
-                        if (!stationSchedules[currentSta]) stationSchedules[currentSta] = [];
-                        stationSchedules[currentSta].push(train);
+                        // 安全檢查 ttnt，確保為有效數字
+                        var parsedTtnt = parseInt(train.ttnt);
+                        if (isNaN(parsedTtnt)) return;
 
-                        if (!currentGroup[key] || parseInt(train.ttnt) < parseInt(currentGroup[key].ttnt)) {
-                            currentGroup[key] = train; 
+                        if (!stationSchedules[currentSta]) stationSchedules[currentSta] = [];
+                        stationSchedules[currentSta].push({ ...train, ttntInt: parsedTtnt });
+
+                        if (!currentGroup[key] || parsedTtnt < parseInt(currentGroup[key].ttnt)) {
+                            currentGroup[key] = { ...train, ttntInt: parsedTtnt }; 
                         }
                     });
 
@@ -137,7 +141,7 @@
                         var currentTrain = currentGroup[key];
                         var lastTrain = lastStationState[key];
 
-                        var currentTtnt = parseInt(currentTrain.ttnt);
+                        var currentTtnt = currentTrain.ttntInt;
                         var currentSta = currentTrain.station.toUpperCase(); 
                         var dir = currentTrain.direction;
                         var prevSta = getPreviousStation(currentSta, dir); 
@@ -147,10 +151,13 @@
                         if (lastTrain) {
                             var lastTtnt = parseInt(lastTrain.ttnt);
 
+                            // 🟢 修正 2：發車離站時加入 12 秒月台停靠延遲，防止列車過早出發
                             if ((lastTtnt === 0 && currentTtnt > 0) || (isTerminus(currentSta, dir) && currentTtnt > lastTtnt)) {
                                 if (prevSta) {
                                     clearPreviousBlockTrain(prevSta, dir);
-                                    launchVirtualTrain(prevSta, currentSta, dir, currentTrain.dest);
+                                    setTimeout(() => {
+                                        launchVirtualTrain(prevSta, currentSta, dir, currentTrain.dest);
+                                    }, 12000); 
                                 }
                             }
                         } else {
@@ -176,7 +183,7 @@
                         lastStationState[key] = currentTrain;
                     });
 
-                    // 🟢 簡化車站彈窗顯示：每個方向只顯示首班列車 TTNT
+                    // 🟢 修正 1：車站彈窗安全解析，防止出現 undefined
                     Object.keys(stationLayers).forEach(staCode => {
                         var marker = stationLayers[staCode];
                         var schedules = stationSchedules[staCode] || [];
@@ -187,23 +194,25 @@
                         if (schedules.length === 0) {
                             popupContent += `<span style="color:#888;font-size:12px;">暫無實時列車即將進站</span>`;
                         } else {
-                            var upTrains = schedules.filter(t => t.direction === 'UP');
-                            var downTrains = schedules.filter(t => t.direction === 'DOWN');
+                            var upTrains = schedules.filter(t => t.direction === 'UP' && !isNaN(t.ttntInt));
+                            var downTrains = schedules.filter(t => t.direction === 'DOWN' && !isNaN(t.ttntInt));
 
-                            var nextUpTrain = upTrains.sort((a, b) => parseInt(a.ttnt) - parseInt(b.ttnt))[0];
-                            var nextDownTrain = downTrains.sort((a, b) => parseInt(a.ttnt) - parseInt(b.ttnt))[0];
+                            var nextUpTrain = upTrains.sort((a, b) => a.ttntInt - b.ttntInt)[0];
+                            var nextDownTrain = downTrains.sort((a, b) => a.ttntInt - b.ttntInt)[0];
 
-                            if (nextUpTrain) {
-                                var upTtnt = parseInt(nextUpTrain.ttnt);
+                            // 上行處理
+                            if (nextUpTrain && typeof nextUpTrain.ttntInt === 'number') {
+                                var upTtnt = nextUpTrain.ttntInt;
                                 var upText = (upTtnt === 0) ? `<span style="color:green;font-weight:bold;">列車進站中</span>` : `<span style="color:#E2231A;font-weight:bold;">${upTtnt}</span> 分鐘後`;
                                 popupContent += `<div style="font-size:12px;margin:3px 0;">• <b>往荃灣</b>: ${upText}</div>`;
                             } else {
                                 popupContent += `<div style="font-size:12px;margin:3px 0;color:#999;">• <b>往荃灣</b>: 暫無班次數據</div>`;
                             }
 
-                            if (nextDownTrain) {
-                                var downTtnt = parseInt(nextDownTrain.ttnt);
-                                var downText = (downTtnt === 0) ? `<span style="color:green;font-weight:bold;">列車進站中</span>` : `<span style="color:#E2231A;font-weight:bold;">${downText}</span> 分鐘後`;
+                            // 下行處理
+                            if (nextDownTrain && typeof nextDownTrain.ttntInt === 'number') {
+                                var downTtnt = nextDownTrain.ttntInt;
+                                var downText = (downTtnt === 0) ? `<span style="color:green;font-weight:bold;">列車進站中</span>` : `<span style="color:#E2231A;font-weight:bold;">${downTtnt}</span> 分鐘後`;
                                 popupContent += `<div style="font-size:12px;margin:3px 0;">• <b>往中環</b>: ${downText}</div>`;
                             } else {
                                 popupContent += `<div style="font-size:12px;margin:3px 0;color:#999;">• <b>往中環</b>: 暫無班次數據</div>`;
