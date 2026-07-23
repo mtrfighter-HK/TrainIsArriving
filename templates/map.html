@@ -68,10 +68,11 @@
         var lastStationState = {}; 
         var activeTrains = {}; 
 
+        // 🟢 靜態檔案讀取路徑已更新為 /static/
         Promise.all([
-            fetch('/路線軌道檔/Track.TsuenWanLine.geojson').then(res => res.json()),
-            fetch('/系統基本檔/StationLocation_2026_06.geojson').then(res => res.json()),
-            fetch('https://raw.githubusercontent.com/mtrfighter-HK/WhereAreTheIron/main/%E7%B3%BB%E7%B5%B1%E5%9F%BA%E6%9C%AC%E6%AA%94%2FTravelTimeConfig.json').then(res => res.json()).catch(() => null)
+            fetch('/static/Track.TsuenWanLine.geojson').then(res => res.json()),
+            fetch('/static/StationLocation_2026_06.geojson').then(res => res.json()),
+            fetch('/static/TravelTimeConfig.json').then(res => res.json()).catch(() => null)
         ]).then(([trackData, stationData, timeConfig]) => {
 
             trackFeatures = trackData.features;
@@ -125,7 +126,6 @@
                         var dir = train.direction;
                         var key = `${currentSta}_${dir}`;
 
-                        // 安全檢查 ttnt，確保為有效數字
                         var parsedTtnt = parseInt(train.ttnt);
                         if (isNaN(parsedTtnt)) return;
 
@@ -151,7 +151,6 @@
                         if (lastTrain) {
                             var lastTtnt = parseInt(lastTrain.ttnt);
 
-                            // 🟢 修正 2：發車離站時加入 12 秒月台停靠延遲，防止列車過早出發
                             if ((lastTtnt === 0 && currentTtnt > 0) || (isTerminus(currentSta, dir) && currentTtnt > lastTtnt)) {
                                 if (prevSta) {
                                     clearPreviousBlockTrain(prevSta, dir);
@@ -183,7 +182,6 @@
                         lastStationState[key] = currentTrain;
                     });
 
-                    // 🟢 修正 1：車站彈窗安全解析，防止出現 undefined
                     Object.keys(stationLayers).forEach(staCode => {
                         var marker = stationLayers[staCode];
                         var schedules = stationSchedules[staCode] || [];
@@ -200,7 +198,6 @@
                             var nextUpTrain = upTrains.sort((a, b) => a.ttntInt - b.ttntInt)[0];
                             var nextDownTrain = downTrains.sort((a, b) => a.ttntInt - b.ttntInt)[0];
 
-                            // 上行處理
                             if (nextUpTrain && typeof nextUpTrain.ttntInt === 'number') {
                                 var upTtnt = nextUpTrain.ttntInt;
                                 var upText = (upTtnt === 0) ? `<span style="color:green;font-weight:bold;">列車進站中</span>` : `<span style="color:#E2231A;font-weight:bold;">${upTtnt}</span> 分鐘後`;
@@ -209,7 +206,6 @@
                                 popupContent += `<div style="font-size:12px;margin:3px 0;color:#999;">• <b>往荃灣</b>: 暫無班次數據</div>`;
                             }
 
-                            // 下行處理
                             if (nextDownTrain && typeof nextDownTrain.ttntInt === 'number') {
                                 var downTtnt = nextDownTrain.ttntInt;
                                 var downText = (downTtnt === 0) ? `<span style="color:green;font-weight:bold;">列車進站中</span>` : `<span style="color:#E2231A;font-weight:bold;">${downTtnt}</span> 分鐘後`;
