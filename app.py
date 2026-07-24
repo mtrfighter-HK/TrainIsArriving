@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="MTR 實時地圖 - 荃灣綫 穩定度修復版")
+app = FastAPI(title="MTR 實時地圖 - 自動初始化修復版")
 
 # 掛載 static 資料夾
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -18,9 +18,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # ==========================================
-# 💾 Railway Volume / 本機 永久路徑設定
+# 💾 確保資料庫目錄存在並設定路徑
 # ==========================================
 DB_DIR = "/app/data" if os.path.exists("/app/data") else "."
+if DB_DIR != ".":
+    os.makedirs(DB_DIR, exist_ok=True)  # 🟢 確保資料夾一定存在
+
 DB_PATH = os.path.join(DB_DIR, "mtr_data.db")
 
 def get_db():
@@ -28,31 +31,34 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# 初始化資料庫
-conn = get_db()
-conn.execute('''CREATE TABLE IF NOT EXISTS mtr_ttnt (
-    id INTEGER PRIMARY KEY,
-    timestamp TEXT,
-    line TEXT,
-    station TEXT,
-    direction TEXT,
-    dest TEXT,
-    ttnt INTEGER,
-    is_delay TEXT,
-    collected_at TEXT
-)''')
-conn.execute('''CREATE TABLE IF NOT EXISTS departure_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_time TEXT,
-    station TEXT,
-    direction TEXT,
-    dest TEXT
-)''')
-conn.commit()
-conn.close()
+# 初始化資料庫結構
+def init_db():
+    conn = get_db()
+    conn.execute('''CREATE TABLE IF NOT EXISTS mtr_ttnt (
+        id INTEGER PRIMARY KEY,
+        timestamp TEXT,
+        line TEXT,
+        station TEXT,
+        direction TEXT,
+        dest TEXT,
+        ttnt INTEGER,
+        is_delay TEXT,
+        collected_at TEXT
+    )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS departure_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_time TEXT,
+        station TEXT,
+        direction TEXT,
+        dest TEXT
+    )''')
+    conn.commit()
+    conn.close()
+
+init_db()
 
 # ==========================================
-# 📡 背景收集器 (加入嚴密 Exception 捕捉)
+# 📡 背景數據收集器
 # ==========================================
 def background_collector():
     stations = [
@@ -67,19 +73,19 @@ def background_collector():
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     
-    print("🚀 背景數據收集器已啟動...")
+    print("🚀 [系統訊息] 背景數據收集服務已啟動！")
 
     while True:
         try:
             conn = get_db()
             c = conn.cursor()
             now = datetime.now().isoformat()
-            success_count = 0
+            inserted_records = 0
             
             for line, sta in stations:
                 try:
                     url = f"https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line={line}&sta={sta}"
-                    r = requests.get(url, headers=headers, timeout=10)
+                    r = requests.get(url, headers=headers, timeout=8)
                     
                     if r.status_code == 200:
                         res_json = r.json()
@@ -99,9 +105,8 @@ def background_collector():
                                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                                                 (now, line, sta, direction, dest, ttnt_int, is_delay_val, now))
                                             
-                                            success_count += 1
+                                            inserted_records += 1
                                             
-                                            # 出站事件檢測
                                             key = f"{sta}_{direction}"
                                             if key in last_api_state:
                                                 last_ttnt = last_api_state[key]
@@ -112,18 +117,21 @@ def background_collector():
                                                         (now, sta, direction, dest))
                                             last_api_state[key] = ttnt_int
                 except Exception as sta_err:
-                    print(f"⚠️ 抓取車站 {sta} 失敗: {sta_err}")
+                    print(f"⚠️ 車站 {sta} 擷取失敗: {sta_err}")
             
             conn.commit()
             conn.close()
-            # print(f"✅ [{now}] 成功更新 {success_count} 筆列車數據")
+            print(f"✅ [{now}] 成功寫入 {inserted_records} 筆列車紀錄")
         except Exception as e:
-            print(f"❌ 資料庫寫入全域錯誤: {e}")
+            print(f"❌ 數據庫寫入異常: {e}")
 
-        time.sleep(20) # 每 20 秒抓取一次最新數據
+        time.sleep(20) # 每 20 秒抓取一輪數據
 
-# 啟動背景線程
-threading.Thread(target=background_collector, daemon=True).start()
+# 🟢 使用 FastAPI Startup 事件觸發背景線程
+@app.on_event("startup")
+def start_background_tasks():
+    thread = threading.Thread(target=background_collector, daemon=True)
+    thread.start()
 
 # ==========================================
 # 📬 路由設定
@@ -137,13 +145,10 @@ async def home(request: Request):
 async def admin_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin.html", context={})
 
-# 🟢 容錯率最高的 Live API：取得各車站最新寫入的一筆資料
 @app.get("/api/live")
 async def get_live_trains():
     conn = get_db()
     c = conn.cursor()
-    
-    # 採用 ROW_NUMBER() 或 GROUP BY max(id) 來獲取每個車站最後一次成功的紀錄
     c.execute('''
         SELECT t.line, t.station, t.direction, t.dest, t.ttnt, t.is_delay, t.timestamp
         FROM mtr_ttnt t
@@ -170,7 +175,6 @@ async def get_live_trains():
         })
     return {"status": "success", "data": trains}
 
-# 🟢 健檢 API：用來確認資料庫是否有資料進入
 @app.get("/api/debug")
 async def debug_info():
     conn = get_db()
