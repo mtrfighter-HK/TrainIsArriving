@@ -8,17 +8,17 @@ from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles  # 🟢 引入 StaticFiles
+from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="MTR 實時地圖 - 荃灣綫 大數據持久化版")
+app = FastAPI(title="MTR 實時地圖 - 荃灣綫 穩定度修復版")
 
-# 🟢 掛載 static 資料夾
+# 掛載 static 資料夾
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
 
 # ==========================================
-# 💾 Railway Volume 永久路徑設定
+# 💾 Railway Volume / 本機 永久路徑設定
 # ==========================================
 DB_DIR = "/app/data" if os.path.exists("/app/data") else "."
 DB_PATH = os.path.join(DB_DIR, "mtr_data.db")
@@ -52,7 +52,7 @@ conn.commit()
 conn.close()
 
 # ==========================================
-# 📡 背景收集器
+# 📡 背景收集器 (加入嚴密 Exception 捕捉)
 # ==========================================
 def background_collector():
     stations = [
@@ -63,69 +63,70 @@ def background_collector():
     ]
     
     last_api_state = {}
-    backup_day_counter = 0
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
     
+    print("🚀 背景數據收集器已啟動...")
+
     while True:
         try:
             conn = get_db()
             c = conn.cursor()
             now = datetime.now().isoformat()
+            success_count = 0
             
             for line, sta in stations:
                 try:
                     url = f"https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line={line}&sta={sta}"
-                    r = requests.get(url, timeout=8)
+                    r = requests.get(url, headers=headers, timeout=10)
+                    
                     if r.status_code == 200:
-                        data = r.json().get('data', {}).get(f'{line}-{sta}', {})
-                        for direction in ['UP', 'DOWN']:
-                            if direction in data:
-                                for train in data[direction]:
-                                    ttnt_val = train.get('ttnt')
-                                    if ttnt_val is not None and str(ttnt_val).isdigit():
-                                        ttnt_int = int(ttnt_val)
-                                        dest = train.get('dest')
-                                        is_delay_val = train.get('isdelay', 'N')
-                                        
-                                        c.execute('''INSERT INTO mtr_ttnt 
-                                            (timestamp, line, station, direction, dest, ttnt, is_delay, collected_at)
-                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                                            (now, line, sta, direction, dest, ttnt_int, is_delay_val, now))
-                                        
-                                        key = f"{sta}_{direction}"
-                                        if key in last_api_state:
-                                            last_ttnt = last_api_state[key]
-                                            if last_ttnt == 0 and ttnt_int > 0:
-                                                c.execute('''INSERT INTO departure_events 
-                                                    (event_time, station, direction, dest)
-                                                    VALUES (?, ?, ?, ?)''',
-                                                    (now, sta, direction, dest))
-                                        last_api_state[key] = ttnt_int
-                except Exception as e:
-                    print(f"抓取車站 {sta} 失敗: {e}")
+                        res_json = r.json()
+                        if res_json.get('status') == 1:
+                            data = res_json.get('data', {}).get(f'{line}-{sta}', {})
+                            for direction in ['UP', 'DOWN']:
+                                if direction in data:
+                                    for train in data[direction]:
+                                        ttnt_val = train.get('ttnt')
+                                        if ttnt_val is not None and str(ttnt_val).isdigit():
+                                            ttnt_int = int(ttnt_val)
+                                            dest = train.get('dest')
+                                            is_delay_val = train.get('isdelay', 'N')
+                                            
+                                            c.execute('''INSERT INTO mtr_ttnt 
+                                                (timestamp, line, station, direction, dest, ttnt, is_delay, collected_at)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                                                (now, line, sta, direction, dest, ttnt_int, is_delay_val, now))
+                                            
+                                            success_count += 1
+                                            
+                                            # 出站事件檢測
+                                            key = f"{sta}_{direction}"
+                                            if key in last_api_state:
+                                                last_ttnt = last_api_state[key]
+                                                if last_ttnt == 0 and ttnt_int > 0:
+                                                    c.execute('''INSERT INTO departure_events 
+                                                        (event_time, station, direction, dest)
+                                                        VALUES (?, ?, ?, ?)''',
+                                                        (now, sta, direction, dest))
+                                            last_api_state[key] = ttnt_int
+                except Exception as sta_err:
+                    print(f"⚠️ 抓取車站 {sta} 失敗: {sta_err}")
             
             conn.commit()
             conn.close()
+            # print(f"✅ [{now}] 成功更新 {success_count} 筆列車數據")
         except Exception as e:
-            print(f"資料庫寫入錯誤: {e}")
-            
-        backup_day_counter += 1
-        if backup_day_counter >= 2880:
-            backup_day_counter = 0
-            try:
-                conn = get_db()
-                conn.execute("DELETE FROM mtr_ttnt WHERE timestamp < datetime('now', '-7 days')")
-                conn.execute("VACUUM")
-                conn.commit()
-                conn.close()
-            except Exception as e:
-                print(f"定時清理失敗: {e}")
+            print(f"❌ 資料庫寫入全域錯誤: {e}")
 
-        time.sleep(30)
+        time.sleep(20) # 每 20 秒抓取一次最新數據
 
+# 啟動背景線程
 threading.Thread(target=background_collector, daemon=True).start()
 
 # ==========================================
-# 📬 路由
+# 📬 路由設定
 # ==========================================
 
 @app.get("/", response_class=HTMLResponse)
@@ -136,19 +137,22 @@ async def home(request: Request):
 async def admin_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin.html", context={})
 
+# 🟢 容錯率最高的 Live API：取得各車站最新寫入的一筆資料
 @app.get("/api/live")
 async def get_live_trains():
     conn = get_db()
     c = conn.cursor()
+    
+    # 採用 ROW_NUMBER() 或 GROUP BY max(id) 來獲取每個車站最後一次成功的紀錄
     c.execute('''
-        SELECT t.line, t.station, t.direction, t.dest, t.ttnt, t.is_delay 
+        SELECT t.line, t.station, t.direction, t.dest, t.ttnt, t.is_delay, t.timestamp
         FROM mtr_ttnt t
         INNER JOIN (
-            SELECT station, direction, MAX(timestamp) as max_ts
+            SELECT station, direction, MAX(id) as max_id
             FROM mtr_ttnt
-            WHERE timestamp >= datetime('now', '-3 minutes') AND line = 'TWL'
+            WHERE line = 'TWL'
             GROUP BY station, direction
-        ) tm ON t.station = tm.station AND t.direction = tm.direction AND t.timestamp = tm.max_ts
+        ) tm ON t.id = tm.max_id
     ''')
     rows = c.fetchall()
     conn.close()
@@ -161,15 +165,28 @@ async def get_live_trains():
             "direction": row["direction"],
             "dest": row["dest"],
             "ttnt": row["ttnt"],
-            "is_delay": row["is_delay"]
+            "is_delay": row["is_delay"],
+            "timestamp": row["timestamp"]
         })
     return {"status": "success", "data": trains}
+
+# 🟢 健檢 API：用來確認資料庫是否有資料進入
+@app.get("/api/debug")
+async def debug_info():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM mtr_ttnt")
+    count = c.fetchone()[0]
+    c.execute("SELECT timestamp FROM mtr_ttnt ORDER BY id DESC LIMIT 1")
+    last_row = c.fetchone()
+    last_ts = last_row[0] if last_row else "無資料"
+    conn.close()
+    return {"total_records": count, "latest_timestamp": last_ts}
 
 @app.get('/api/admin/departures')
 async def api_admin_departures(station: str = "ALL", period: str = "ALL", hour: str = "ALL"):
     conn = get_db()
     cursor = conn.cursor()
-    
     query = "SELECT event_time, station, direction, dest FROM departure_events WHERE 1=1"
     params = []
     
@@ -187,7 +204,6 @@ async def api_admin_departures(station: str = "ALL", period: str = "ALL", hour: 
         params.append(f"{int(hour):02d}")
         
     query += " ORDER BY event_time DESC LIMIT 100"
-    
     cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
     conn.close()
