@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>MTR 實時列車地圖 - 動畫與彈窗修復版</title>
+    <title>MTR 實時列車地圖 - 月台停靠優化版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -68,7 +68,7 @@
         var lastStationState = {}; 
         var activeTrains = {}; 
 
-        // 🟢 靜態檔案讀取路徑已更新為 /static/
+        // 讀取 static 資料夾中的靜態檔
         Promise.all([
             fetch('/static/Track.TsuenWanLine.geojson').then(res => res.json()),
             fetch('/static/StationLocation_2026_06.geojson').then(res => res.json()),
@@ -151,12 +151,11 @@
                         if (lastTrain) {
                             var lastTtnt = parseInt(lastTrain.ttnt);
 
+                            // 🟢 離站檢測：觸發發車，並讓 VirtualTrain 內部處理月台最小停靠時間
                             if ((lastTtnt === 0 && currentTtnt > 0) || (isTerminus(currentSta, dir) && currentTtnt > lastTtnt)) {
                                 if (prevSta) {
                                     clearPreviousBlockTrain(prevSta, dir);
-                                    setTimeout(() => {
-                                        launchVirtualTrain(prevSta, currentSta, dir, currentTrain.dest);
-                                    }, 12000); 
+                                    launchVirtualTrain(prevSta, currentSta, dir, currentTrain.dest);
                                 }
                             }
                         } else {
@@ -173,7 +172,7 @@
                             var runningTrain = activeTrains[trainId];
 
                             if (currentTtnt === 0) {
-                                if (!runningTrain.inCompensationZone) {
+                                if (!runningTrain.inCompensationZone && !runningTrain.isDwelling) {
                                     runningTrain.enterCompensation(runningTrain.ratio); 
                                 }
                             }
@@ -182,6 +181,7 @@
                         lastStationState[key] = currentTrain;
                     });
 
+                    // 車站彈窗資訊更新
                     Object.keys(stationLayers).forEach(staCode => {
                         var marker = stationLayers[staCode];
                         var schedules = stationSchedules[staCode] || [];
@@ -250,6 +250,9 @@
                 this.startTime = Date.now();
                 this.ratio = 0.0;
                 this.inCompensationZone = false;
+                this.isDwelling = false; // 🟢 月台停靠狀態標籤
+                this.dwellStartTime = 0; // 🟢 月台停靠開始時間
+                this.minDwellTime = 18000; // 🟢 最小月台停靠時間 (18秒)
                 this.timer = null;
 
                 this.iconElement = L.divIcon({ 
@@ -278,6 +281,7 @@
             startCruise() {
                 if (this.timer) clearInterval(this.timer);
                 this.isDelayed = false;
+                this.isDwelling = false;
                 this.startTime = Date.now();
 
                 this.timer = setInterval(() => {
@@ -306,7 +310,7 @@
 
                 this.ratio = startRatio;
                 var compStartTime = Date.now();
-                var compDuration = 6000;
+                var compDuration = 5000;
 
                 this.updatePopupText("正在減速進站...");
 
@@ -328,10 +332,17 @@
                 }, 200); 
             }
 
+            // 🟢 進入月台停靠狀態
             arrive() {
-                this.updatePopupText("<span style='color:#E2231A;font-weight:bold;'>列車已進站 / 正在上落客</span>");
+                this.isDwelling = true;
+                this.dwellStartTime = Date.now();
+                var lastPt = this.spatialData.points[this.spatialData.points.length - 1];
+                this.marker.setLatLng(lastPt);
+                
+                this.updatePopupText("<span style='color:#E2231A;font-weight:bold;'>月台停靠中 / 上落客中</span>");
+
                 if (isTerminus(this.toSta, this.direction)) {
-                    setTimeout(() => { this.destroy(); }, 20000);
+                    setTimeout(() => { this.destroy(); }, 25000);
                 }
             }
 
@@ -382,10 +393,28 @@
 
         function launchVirtualTrain(fromSta, toSta, dir, dest) {
             var trainId = `${dir}_${fromSta}_${toSta}`;
-            if (activeTrains[trainId]) {
-                activeTrains[trainId].destroy();
+            
+            // 🟢 檢查上一區間列車是否正在月台停靠，並確保停靠滿最小時間才發車
+            var prevPrevSta = getPreviousStation(fromSta, dir === "UP" ? "DOWN" : "UP");
+            var oldTrainId = `${dir}_${prevPrevSta}_${fromSta}`;
+            var oldTrain = activeTrains[oldTrainId];
+
+            var delayLaunch = 0;
+            if (oldTrain && oldTrain.isDwelling) {
+                var dwellElapsed = Date.now() - oldTrain.dwellStartTime;
+                if (dwellElapsed < oldTrain.minDwellTime) {
+                    delayLaunch = oldTrain.minDwellTime - dwellElapsed;
+                }
             }
-            activeTrains[trainId] = new VirtualTrain(fromSta, toSta, dir, dest, false);
+
+            setTimeout(() => {
+                if (oldTrain) oldTrain.destroy();
+
+                if (activeTrains[trainId]) {
+                    activeTrains[trainId].destroy();
+                }
+                activeTrains[trainId] = new VirtualTrain(fromSta, toSta, dir, dest, false);
+            }, delayLaunch);
         }
 
         function spawnStationTrain(fromSta, toSta, dir, dest) {
